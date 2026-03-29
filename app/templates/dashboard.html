@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<section class="page-header-gradient">
+  <h1 class="page-header-title">Dashboard - رصيد المستودعات</h1>
+  <p class="page-header-subtitle">Inbound + Distribution + Outbound + Balance (لكل الأصناف)</p>
+</section>
+
+<section class="page-content">
+
+  <!-- Filters -->
+  <div class="card">
+    <div class="card-header"><h2>بحث / فلترة</h2></div>
+
+    <form method="get" class="employee-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label>اسم المخزن</label>
+          <input type="text" name="fdp" class="form-input" value="{{ filters.fdp }}" placeholder="مثال: AL-Migdad">
+        </div>
+
+        <div class="form-group">
+          <label>المحافظة</label>
+          <input type="text" name="governorate" class="form-input" value="{{ filters.governorate }}" placeholder="اختياري">
+        </div>
+
+        <div class="form-group">
+          <label>من تاريخ</label>
+          <input type="date" name="date_from" class="form-input" value="{{ filters.date_from }}">
+        </div>
+
+        <div class="form-group">
+          <label>إلى تاريخ</label>
+          <input type="date" name="date_to" class="form-input" value="{{ filters.date_to }}">
+        </div>
+      </div>
+
+      <div class="form-actions" style="justify-content:flex-start; gap:10px;">
+        <button class="btn-primary" type="submit">
+          <i class="fa-solid fa-filter"></i> Filter
+        </button>
+
+        <a href="{{ url_for('dashboard.index') }}"
+           class="btn-primary" style="background:#4b5563; text-decoration:none;">
+          <i class="fa-solid fa-rotate-left"></i> Reset
+        </a>
+
+        <a href="{{ url_for('dashboard.export',
+                            fdp=filters.fdp,
+                            governorate=filters.governorate,
+                            date_from=filters.date_from,
+                            date_to=filters.date_to) }}"
+           class="btn-primary" style="background:#2f855a; text-decoration:none;">
+          <i class="fa-solid fa-file-excel"></i> Export Excel
+        </a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Grand Totals -->
+  <div class="card" style="margin-top:16px;">
+    <div class="card-header"><h2>ملخص عام (Totals)</h2></div>
+
+    <div style="display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:12px; margin-top:10px;">
+      <div style="background:linear-gradient(135deg,#2b6cb0,#4299e1); border-radius:16px; padding:14px; color:#fff;">
+        <div style="opacity:.9;">Inbound (Units)</div>
+        <div style="font-size:1.6rem; font-weight:700;">{{ grand.in_units|int }}</div>
+      </div>
+      <div style="background:linear-gradient(135deg,#805ad5,#b794f4); border-radius:16px; padding:14px; color:#fff;">
+        <div style="opacity:.9;">Distributed (Units)</div>
+        <div style="font-size:1.6rem; font-weight:700;">{{ grand.dist_units|int }}</div>
+      </div>
+      <div style="background:linear-gradient(135deg,#a84854,#ed64a6); border-radius:16px; padding:14px; color:#fff;">
+        <div style="opacity:.9;">Outbound (Units)</div>
+        <div style="font-size:1.6rem; font-weight:700;">{{ grand.out_units|int }}</div>
+      </div>
+      <div style="background:linear-gradient(135deg,#38a169,#68d391); border-radius:16px; padding:14px; color:#fff;">
+        <div style="opacity:.9;">Balance (Units)</div>
+        <div style="font-size:1.6rem; font-weight:700;">{{ grand.bal_units|int }}</div>
+      </div>
+    </div>
+
+    <div style="margin-top:10px; font-size:0.9rem; color:#4a5568;">
+      MT Totals — In: <b>{{ grand.in_mt|round(3) }}</b> |
+      Dist: <b>{{ grand.dist_mt|round(3) }}</b> |
+      Out: <b>{{ grand.out_mt|round(3) }}</b> |
+      Bal: <b>{{ grand.bal_mt|round(3) }}</b>
+    </div>
+  </div>
+
+  <!-- Chart -->
+  <div class="card" style="margin-top:16px;">
+    <div class="card-header"><h2>Totals Chart (Units)</h2></div>
+    <div style="margin-top:10px;">
+      <canvas id="stockChart" style="max-height:360px;"></canvas>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="card" style="margin-top:16px;">
+    <div class="card-header"><h2>تفاصيل الرصيد لكل مخزن</h2></div>
+
+    {% if rows and rows|length > 0 %}
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Warehouse</th>
+              <th>Inbound U</th>
+              <th>Distributed U</th>
+              <th>Outbound U</th>
+              <th>Balance U</th>
+              <th>Open</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in rows %}
+              <tr>
+                <td>{{ r.fdp }}</td>
+                <td>{{ r.totals.in_units }}</td>
+                <td>{{ r.totals.dist_units }}</td>
+                <td>{{ r.totals.out_units }}</td>
+                <td style="font-weight:700; {% if r.totals.bal_units < 0 %}color:#e53e3e;{% else %}color:#22543d;{% endif %}">
+                  {{ r.totals.bal_units }}
+                </td>
+                <td>
+                  <a class="btn-primary" style="padding:6px 12px; text-decoration:none;"
+                     href="{{ url_for('dashboard.view_warehouse', warehouse_id=r.warehouse_id) }}">
+                    View
+                  </a>
+                </td>
+              </tr>
+
+              <!-- per commodity quick view -->
+              <tr>
+                <td colspan="6" style="background:#f7fafc;">
+                  <div style="display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:10px;">
+                    {% for c in commodities %}
+                      {% set x = r.per[c] %}
+                      <div style="border:1px solid #e2e8f0; border-radius:12px; padding:10px; background:#fff;">
+                        <div style="font-weight:700; margin-bottom:6px;">{{ c }}</div>
+                        <div style="font-size:0.9rem; color:#4a5568;">
+                          In: <b>{{ x.in_units }}</b> |
+                          Dist: <b>{{ x.dist_units }}</b> |
+                          Out: <b>{{ x.out_units }}</b> |
+                          Bal: <b>{{ x.bal_units }}</b>
+                        </div>
+                        <div style="font-size:0.85rem; color:#718096; margin-top:4px;">
+                          MT Bal: <b>{{ x.bal_mt|round(3) }}</b>
+                        </div>
+                      </div>
+                    {% endfor %}
+                  </div>
+                </td>
+              </tr>
+
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p style="font-size:0.9rem; color:#4a5568; margin-top:8px;">لا توجد بيانات حالياً.</p>
+    {% endif %}
+  </div>
+
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const labels   = {{ chart_labels|tojson|safe }};
+  const inData   = {{ chart_inbound|tojson|safe }};
+  const distData = {{ chart_distributed|tojson|safe }};
+  const outData  = {{ chart_outbound|tojson|safe }};
+  const balData  = {{ chart_balance|tojson|safe }};
+
+  const ctx = document.getElementById('stockChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        { label: 'Inbound', data: inData, borderWidth: 1 },
+        { label: 'Distributed', data: distData, borderWidth: 1 },
+        { label: 'Outbound', data: outData, borderWidth: 1 },
+        { label: 'Balance', data: balData, type: 'line', borderWidth: 2, fill: false, tension: 0.2 },
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'top' } },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+</script>
+{% endblock %}

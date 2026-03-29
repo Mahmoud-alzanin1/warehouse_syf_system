@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}SYFS System{% endblock %}</title>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+
+    <!-- ======= NAVBAR ======= -->
+    <header class="main-navbar">
+        <!-- Left: Logo + Title -->
+        <div class="nav-left">
+            <img src="{{ url_for('static', filename='images/logo-70.png') }}"
+                 alt="SYFS Logo"
+                 class="nav-logo-img">
+            <div>
+                <p class="nav-title-main">Warehouse System</p>
+                <p class="nav-title-sub">Save Youth Future Society</p>
+            </div>
+        </div>
+
+        <!-- Center: Links -->
+        <nav class="nav-center">
+
+            <a href="{{ url_for('users.employee_profile') }}" class="nav-link">
+                <i class="fa-solid fa-id-card"></i>
+                <span>Employee</span>
+            </a>
+
+            {% if current_user.is_admin %}
+            <a href="{{ url_for('admin.users_page') }}" class="nav-link">
+                <i class="fa-solid fa-users-gear"></i>
+                <span>Admin Panel</span>
+            </a>
+            {% endif %}
+
+            <a href="{{ url_for('inbound.index') }}" class="nav-link">
+                <i class="fa-solid fa-truck-ramp-box"></i>
+                <span>Inbound</span>
+            </a>
+
+            {% if current_user.can_access_outbound %}
+            <a href="{{ url_for('outbound.index') }}" class="nav-link">
+                <i class="fa-solid fa-truck-fast"></i>
+                <span>Outbound WFP</span>
+            </a>
+            {% endif %}
+
+            <a href="{{ url_for('distribution.index') }}" class="nav-link">
+                <i class="fa-solid fa-boxes-packing"></i>
+                <span>Distribution</span>
+            </a>
+
+            <a href="{{ url_for('data_entry.index') }}" class="nav-link">
+                <i class="fa-solid fa-database"></i>
+                <span>Data Entry</span>
+            </a>
+
+            <!-- Dashboard Dropdown -->
+<div class="nav-dropdown">
+    <button type="button" class="nav-link nav-dropdown-toggle">
+        <i class="fa-solid fa-chart-line"></i>
+        <span>Dashboard</span>
+        <i class="fa-solid fa-caret-down nav-dropdown-caret"></i>
+    </button>
+
+    <div class="nav-dropdown-menu">
+        {% if all_warehouses and all_warehouses|length > 0 %}
+            {% for wh in all_warehouses %}
+                <a href="{{ url_for('dashboard.view_warehouse', warehouse_id=wh.id) }}"
+                   class="nav-dropdown-item">
+                    {{ wh.name }}
+                </a>
+            {% endfor %}
+        {% else %}
+            <span class="nav-dropdown-empty">لا توجد مخازن بعد</span>
+        {% endif %}
+    </div>
+</div>
+
+        </nav>
+
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages(with_categories=True) %}
+        {% if messages %}
+            <div class="flash-container">
+                {% for category, message in messages %}
+                    <div class="flash flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+        {% endwith %}
+
+        <!-- Right side -->
+        <div class="nav-right">
+            <div class="nav-hello">
+                <i class="fa-regular fa-user"></i>
+                <span>{{ current_user.username }}</span>
+            </div>
+
+            <a href="{{ url_for('auth.logout') }}" class="nav-logout">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span>Logout</span>
+            </a>
+        </div>
+    </header>
+
+    <!-- PAGE CONTENT -->
+    <div class="page-wrapper">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- BLOCK extra_js (غير مكرر الآن 👍) -->
+    {% block extra_js %}{% endblock %}
+
+    <script>
+        // Flash messages auto-hide
+        setTimeout(() => {
+            document.querySelectorAll('.flash').forEach(el => {
+                el.classList.add('flash-hide');
+                setTimeout(() => el.remove(), 600);
+            });
+        }, 3000);
+
+        // منع Enter في بعض الفورمات
+        document.addEventListener('keydown', e => {
+            const form = e.target.form;
+            if (e.key === 'Enter' && form && form.classList.contains('employee-form')) {
+                e.preventDefault();
+            }
+        });
+
+        // ====== Dashboard Dropdown (يضل مفتوح حتى تضغط خارجه) ======
+        document.addEventListener('DOMContentLoaded', function () {
+            const dropdown = document.querySelector('.nav-dropdown');
+            if (!dropdown) return;
+
+            const toggleBtn = dropdown.querySelector('.nav-dropdown-toggle');
+            const menu = dropdown.querySelector('.nav-dropdown-menu');
+
+            toggleBtn.addEventListener('click', e => {
+                e.stopPropagation();
+                dropdown.classList.toggle('open');
+            });
+
+            menu.addEventListener('click', e => e.stopPropagation());
+
+            // إغلاق عند الضغط خارج الدروب داون
+            document.addEventListener('click', () => dropdown.classList.remove('open'));
+        });
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,794 @@
+{% extends "base.html" %}
+
+{% block title %}Distribution{% endblock %}
+
+{% block content %}
+
+<section class="page-header-gradient">
+    <h1 class="page-header-title">Distribution</h1>
+    <p class="page-header-subtitle">
+        إدخال بيانات التوزيع وفلترتها وتصديرها إلى ملف Excel.
+    </p>
+</section>
+
+<section class="page-content">
+
+    <!-- 🌈 ستايل خفيف خاص بالفاصل وبلوك الدمج -->
+    <style>
+        .dist-section-divider {
+            margin: 18px 0 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #4a5568;
+            font-size: 0.9rem;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+        }
+        .dist-section-divider::before,
+        .dist-section-divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(to right, transparent, #cbd5e0);
+        }
+        .dist-section-divider::after {
+            background: linear-gradient(to left, transparent, #cbd5e0);
+        }
+
+        .dist-merge-block {
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-top: 4px;
+            background: linear-gradient(135deg, #f7fafc, #edf2f7);
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 10px rgba(148, 163, 184, 0.25);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dist-merge-block::before {
+            content: "";
+            position: absolute;
+            right: -30px;
+            top: -30px;
+            width: 90px;
+            height: 90px;
+            border-radius: 999px;
+            border: 10px solid rgba(66, 153, 225, 0.18);
+        }
+
+        .dist-merge-title {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #2b6cb0;
+            margin-bottom: 6px;
+        }
+
+        .dist-merge-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #ebf8ff;
+            color: #2b6cb0;
+            border-radius: 999px;
+            padding: 3px 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .dist-merge-help {
+            font-size: 0.78rem;
+            color: #4a5568;
+            margin-top: 4px;
+            line-height: 1.5;
+        }
+
+        .dist-merge-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .dist-merge-row {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px 14px;
+            margin-top: 8px;
+        }
+
+        .dist-merge-label {
+            font-size: 0.8rem;
+            color: #4a5568;
+            font-weight: 600;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .dist-merge-tag {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 40px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: #2b6cb0;
+            color: #fff;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+
+        @media (max-width: 768px) {
+            .dist-merge-grid {
+                grid-template-columns: minmax(0, 1fr);
+            }
+            .dist-merge-row {
+                grid-template-columns: minmax(0, 1fr);
+            }
+        }
+    </style>
+
+    <!-- ====== Form ====== -->
+    <div class="card" style="margin-top: 18px;">
+        <div class="card-header">
+            <h2>New Distribution</h2>
+        </div>
+
+        <form method="post" enctype="multipart/form-data" class="employee-form">
+            <!-- الصف 1 -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" name="dist_date"
+                           class="form-input" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Governorate</label>
+                    <select name="governorate" class="form-input" required>
+                        <option value="">-- اختر المحافظة --</option>
+                        
+                        <option value="Gaza">Gaza</option>
+                        <option value="Deir Al-Balah">Deir Al-Balah</option>
+                        <option value="North Gaza">North Gaza</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Distribution Point Neighbourhood</label>
+                    <select name="dist_point_neighbourhood" class="form-input" required>
+                        <option value="">-- اختر الحي --</option>
+                        <option value="Ash shati camp">Ash shati camp</option>
+                        <option value="Northern Remal">Northern Remal</option>
+                        <option value="Az Zawayda (north)">Az Zawayda (north)</option>
+                        <option value="Bitlahya Tuam">Bitlahya Tuam</option>
+                        <option value="Jabalia camp">Jabalia camp</option>
+                        
+                        
+                        
+                        
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Distribution Point (FDP)</label>
+
+                    <!-- ✅ الجديد: warehouse_id (FK) -->
+                    <select name="warehouse_id" class="form-input" required id="warehouseSelectDistribution">
+                        <option value="">-- اختر نقطة التوزيع --</option>
+                        {% for w in all_warehouses %}
+                            <option value="{{ w.id }}">{{ w.name }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <!-- ✅ الحفاظ على الاسم كنص (dist_point) -->
+                    <input type="hidden" name="dist_point" id="distPointHidden" value="">
+                </div>
+            </div>
+
+            <!-- الصف 2 -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Focal Point Name (الشخص المسؤول)</label>
+                    <input type="text" name="focal_point_name"
+                           class="form-input"
+                           placeholder="اسم المسؤول عن التوزيع">
+                </div>
+
+                <div class="form-group">
+                    <label>HHs (Families) - عدد العائلات</label>
+                    <input type="number" min="0" value="0"
+                           name="beneficiaries_hhs"
+                           id="beneficiaries_hhs"
+                           class="form-input">
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        Beneficiaries-عدد المستفيدين
+                        <span style="font-size:0.8rem; color:#718096;">
+                            (HHs×5)
+                        </span>
+                    </label>
+                    <input type="number" min="0" value="0"
+                           name="beneficiaries_members"
+                           id="beneficiaries_members"
+                           class="form-input"
+                           readonly>
+                </div>
+
+                <div class="form-group">
+                    <label>Nr. Parcels - عدد الطرود الغذائية</label>
+                    <input type="number" min="0" value="0"
+                           name="nr_parcels"
+                           id="nr_parcels"
+                           class="form-input">
+                </div>
+            </div>
+
+            <!-- الصف 3: الكميات -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label>WHF Bags - أكياس الطحين</label>
+                    <input type="number" min="0" value="0"
+                           name="whf_bags"
+                           id="whf_bags"
+                           class="form-input">
+                </div>
+
+                <div class="form-group">
+                    <label>Date Bars - ألواح تمر</label>
+                    <input type="number" min="0" value="0"
+                           name="date_bars"
+                           id="date_bars"
+                           class="form-input">
+                </div>
+
+                <div class="form-group">
+                    <label>HEB piece - بسكوت مدعم (حبة)</label>
+                    <input type="number" min="0" value="0"
+                           name="heb_piece"
+                           id="heb_piece"
+                           class="form-input">
+                </div>
+
+                <div class="form-group">
+                    <label>Add New Item - إضافة مادة جديد</label>
+                    <input type="text"
+                           name="add_new_item"
+                           class="form-input"
+                           placeholder="مثال: زيت، سكر...">
+                </div>
+            </div>
+
+            <!-- الصف 4: أوزان الوحدات بالكيلو -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label>WHF Unit Weight (kg)</label>
+                    <input type="number" step="0.01" min="0"
+                           name="whf_unit_weight_kg"
+                           id="whf_unit_weight_kg"
+                           class="form-input"
+                           placeholder="وزن كيس الطحين (كجم)">
+                </div>
+
+                <div class="form-group">
+                    <label>Date Bars Unit Weight (kg)</label>
+                    <input type="number" step="0.01" min="0"
+                           name="date_bars_unit_weight_kg"
+                           id="date_bars_unit_weight_kg"
+                           class="form-input"
+                           placeholder="وزن لوح التمر (كجم)">
+                </div>
+
+                <div class="form-group">
+                    <label>HEB Unit Weight (kg)</label>
+                    <input type="number" step="0.01" min="0"
+                           name="heb_unit_weight_kg"
+                           id="heb_unit_weight_kg"
+                           class="form-input"
+                           placeholder="وزن قطعة البسكوت (كجم)">
+                </div>
+
+                <div class="form-group">
+                    <label>Parcels Unit Weight (kg)</label>
+                    <input type="number" step="0.01" min="0"
+                           name="parcels_unit_weight_kg"
+                           id="parcels_unit_weight_kg"
+                           class="form-input"
+                           placeholder="وزن الطرد (كجم)">
+                </div>
+            </div>
+
+            <!-- الصف 5: الطن المتري لكل نوع (يُحسب تلقائياً) -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label>WHF QTY MT - الطن المتري للطحين</label>
+                    <input type="number" step="0.001" min="0"
+                           name="whf_mt"
+                           id="whf_mt"
+                           class="form-input"
+                           readonly>
+                </div>
+
+                <div class="form-group">
+                    <label>Date Bars QTY MT - الطن المتري للتمر</label>
+                    <input type="number" step="0.001" min="0"
+                           name="date_bars_mt"
+                           id="date_bars_mt"
+                           class="form-input"
+                           readonly>
+                </div>
+
+                <div class="form-group">
+                    <label>HEB QTY MT - الطن المتري للبسكوت</label>
+                    <input type="number" step="0.001" min="0"
+                           name="heb_mt"
+                           id="heb_mt"
+                           class="form-input"
+                           readonly>
+                </div>
+
+                <div class="form-group">
+                    <label>Parcels QTY MT - الطن المتري للطرود</label>
+                    <input type="number" step="0.001" min="0"
+                           name="parcels_mt"
+                           id="parcels_mt"
+                           class="form-input"
+                           readonly>
+                </div>
+            </div>
+
+            <!-- ⭐ فاصل بصري بين الإدخالات الأساسية وإدخالات الدمج -->
+            <div class="dist-section-divider">
+                <span>تفاصيل الدمج / التالف لكل صنف (اختياري)</span>
+            </div>
+
+            <!-- بلوك الدمج المفصل لكل صنف -->
+            <div class="dist-merge-block">
+                <div class="dist-merge-grid">
+                    <div>
+                        <div class="dist-merge-title">
+                            <span class="dist-merge-pill">
+                                <i class="fa-solid fa-layer-group"></i>
+                                Damage / Merged by Commodity
+                            </span>
+                            <span>إدخال عدد الدمج / التالف لكل صنف</span>
+                        </div>
+
+                        <div class="dist-merge-row">
+                            <div>
+                                <div class="dist-merge-label">
+                                    <span class="dist-merge-tag">WHF</span>
+                                    WHF Bags Damage
+                                </div>
+                                <input type="number" min="0" value="0"
+                                       name="whf_damage_units"
+                                       id="whf_damage_units"
+                                       class="form-input"
+                                       placeholder="مثال: 5 أكياس دمج للطحين">
+                            </div>
+
+                            <div>
+                                <div class="dist-merge-label">
+                                    <span class="dist-merge-tag">Date Bars</span>
+                                    Date Bars Damage
+                                </div>
+                                <input type="number" min="0" value="0"
+                                       name="date_bars_damage_units"
+                                       id="date_bars_damage_units"
+                                       class="form-input"
+                                       placeholder="مثال: 3 كراتين دمج للتمر">
+                            </div>
+
+                            <div>
+                                <div class="dist-merge-label">
+                                    <span class="dist-merge-tag">HEB</span>
+                                    HEB Damage (Pieces)
+                                </div>
+                                <input type="number" min="0" value="0"
+                                       name="heb_damage_units"
+                                       id="heb_damage_units"
+                                       class="form-input"
+                                       placeholder="عدد حبات HEB دمج">
+                            </div>
+
+                            <div>
+                                <div class="dist-merge-label">
+                                    <span class="dist-merge-tag">Parcels / RTE</span>
+                                    Parcels Damage
+                                </div>
+                                <input type="number" min="0" value="0"
+                                       name="parcels_damage_units"
+                                       id="parcels_damage_units"
+                                       class="form-input"
+                                       placeholder="عدد الطرود (RTE) دمج / تالف">
+                            </div>
+                        </div>
+
+                        <p class="dist-merge-help">
+                            هذه الحقول لا تُستخدم في خصم الرصيد الأساسي للمخزن،
+                            بل فقط لإظهار:
+                            <strong>Damage Inbound / Damage Distribution / Damage Balance</strong>
+                            لكل صنف في الداشبورد وتقارير الإكسل.
+                        </p>
+                    </div>
+
+                    <div>
+                        <p class="dist-merge-help" style="margin-top:4px;">
+                            مثال عملي:<br>
+                            ▪ في الوارد (Inbound) لكل صنف عندك حقل <strong>Damage</strong>.<br>
+                            ▪ هنا تسجل الدمج في التوزيع لكل صنف:<br>
+                            &nbsp;&nbsp;• WHF Bags دمج = عدد الأكياس التالفة أو الدمج<br>
+                            &nbsp;&nbsp;• Date Bars دمج = عدد الكراتين التالفة أو الدمج<br>
+                            &nbsp;&nbsp;• HEB دمج = عدد الحبات التالفة أو الدمج<br>
+                            &nbsp;&nbsp;• Parcels / RTE دمج = عدد الطرود الدمج / التالفة<br><br>
+                            الداشبورد سيعرض لك لاحقاً:
+                            <br>
+                            <strong>Damage Inbound</strong> – <strong>Damage Distribution</strong> – <strong>Damage Balance</strong>
+                            لكل صنف بدون التأثير على رصيد المخزون الأساسي.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- الصف 6 -->
+            <div class="form-row" style="margin-top: 16px;">
+                <div class="form-group">
+                    <label>Screenshot / Photo</label>
+                    <input type="file" name="dist_image"
+                           class="form-input" accept="image/*">
+                </div>
+
+                <div class="form-group">
+                    <label>Data Entry Name</label>
+                    <input type="text"
+                           class="form-input"
+                           value="{{ current_user.username }}"
+                           disabled>
+                </div>
+
+                <div class="form-group">
+                    <label>Notes ملاحظات</label>
+                    <input type="text" name="notes"
+                           class="form-input"
+                           placeholder="(تفاصيل الطرد / تفاصيل إضافية)">
+                </div>
+
+                <div class="form-group"></div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn-primary">
+                    <i class="fa-solid fa-floppy-disk"></i>
+                    Save Distribution
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- ====== Filters + Table ====== -->
+    <div class="card" style="margin-top: 18px;">
+        <div class="card-header">
+            <h2>Distribution Records</h2>
+        </div>
+
+        {% if current_user.is_admin %}
+        <form method="get" class="employee-form" style="margin-bottom: 10px;">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>من تاريخ</label>
+                    <input type="date" name="date_from"
+                           class="form-input"
+                           value="{{ filters.date_from }}">
+                </div>
+
+                <div class="form-group">
+                    <label>إلى تاريخ</label>
+                    <input type="date" name="date_to"
+                           class="form-input"
+                           value="{{ filters.date_to }}">
+                </div>
+
+                <div class="form-group">
+                    <label>المحافظة</label>
+                    <input type="text" name="governorate"
+                           class="form-input"
+                           placeholder="بحث بالمحافظة"
+                           value="{{ filters.governorate }}">
+                </div>
+
+                <div class="form-group">
+                    <label>نقطة التوزيع</label>
+                    <input type="text" name="dist_point"
+                           class="form-input"
+                           placeholder="بحث بنقطة التوزيع"
+                           value="{{ filters.dist_point }}">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>اسم مدخل البيانات</label>
+                    <input type="text" name="employee_name"
+                           class="form-input"
+                           placeholder="بحث باسم المستخدم"
+                           value="{{ filters.employee_name }}">
+                </div>
+                <div class="form-group"></div>
+                <div class="form-group"></div>
+                <div class="form-group"></div>
+            </div>
+
+            <div class="form-actions" style="justify-content:flex-start; gap:10px;">
+                <button type="submit" class="btn-primary">
+                    <i class="fa-solid fa-filter"></i>
+                    Filter
+                </button>
+
+                <a href="{{ url_for('distribution.index') }}"
+                   class="btn-primary"
+                   style="background:#4a5568; text-decoration:none;">
+                    <i class="fa-solid fa-rotate-left"></i>
+                    Reset
+                </a>
+
+                <a href="{{ url_for('distribution.export',
+                                    date_from=filters.date_from,
+                                    date_to=filters.date_to,
+                                    governorate=filters.governorate,
+                                    dist_point=filters.dist_point,
+                                    employee_name=filters.employee_name) }}"
+                   class="btn-primary"
+                   style="background:#2f855a; text-decoration:none;">
+                    <i class="fa-solid fa-file-excel"></i>
+                    Export Excel
+                </a>
+            </div>
+        </form>
+        {% else %}
+        <div class="form-actions" style="justify-content:flex-start; gap:10px; margin-bottom:10px;">
+            <a href="{{ url_for('distribution.export') }}"
+               class="btn-primary"
+               style="background:#2f855a; text-decoration:none;">
+                <i class="fa-solid fa-file-excel"></i>
+                Export My Records
+            </a>
+        </div>
+        {% endif %}
+
+        {% if entries %}
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Nr</th>
+                        <th>Date</th>
+                        <th>Governorate</th>
+                        <th>Dist. Neighbourhood</th>
+                        <th>Dist. Point</th>
+                        <th>Focal Point</th>
+                        <th>HHs</th>
+                        <th>Members</th>
+                        <th>Nr. Parcels</th>
+                        <th>WHF Bags</th>
+                        <th>Date Bars</th>
+                        <th>HEB piece</th>
+                        <th>WHF Damage</th>
+                        <th>Date Bars Damage</th>
+                        <th>HEB Damage</th>
+                        <th>Parcels Damage</th>
+                        <th>Add New Item</th>
+                        <th>Notes</th>
+                        <th>Image</th>
+                        <th>Data Entry</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in entries %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ e.dist_date.strftime('%Y-%m-%d') if e.dist_date else '' }}</td>
+                        <td>{{ e.governorate or '' }}</td>
+                        <td>{{ e.dist_point_neighbourhood or '' }}</td>
+                        <td>{{ e.dist_point or '' }}</td>
+                        <td>{{ e.focal_point_name or '' }}</td>
+                        <td>{{ e.beneficiaries_hhs or 0 }}</td>
+                        <td>{{ e.beneficiaries_members or 0 }}</td>
+                        <td>{{ e.nr_parcels or 0 }}</td>
+                        <td>{{ e.whf_bags or 0 }}</td>
+                        <td>{{ e.date_bars or 0 }}</td>
+                        <td>{{ e.heb_piece or 0 }}</td>
+                        <td>{{ e.whf_damage_units or 0 }}</td>
+                        <td>{{ e.date_bars_damage_units or 0 }}</td>
+                        <td>{{ e.heb_damage_units or 0 }}</td>
+                        <td>{{ e.parcels_damage_units or 0 }}</td>
+                        <td>{{ e.add_new_item or '' }}</td>
+                        <td>{{ e.notes or '' }}</td>
+                        <td>
+                            {% if e.dist_image %}
+                                <a href="{{ url_for('static', filename='uploads/' ~ e.dist_image) }}"
+                                   target="_blank">عرض</a>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>{{ e.data_entry_name or '' }}</td>
+
+                        <td>
+                            {% if current_user.is_admin %}
+                                <form method="post"
+                                      action="{{ url_for('distribution.delete', dist_id=e.id) }}"
+                                      onsubmit="return confirm('هل أنت متأكد من حذف هذا السجل؟');">
+
+                                    <button type="submit"
+                                            style="
+                                                background: linear-gradient(135deg, #e53e3e, #c53030);
+                                                color:#fff;
+                                                border:none;
+                                                padding:5px 14px;
+                                                border-radius:12px;
+                                                font-size:0.85rem;
+                                                font-weight:600;
+                                                cursor:pointer;
+                                                box-shadow:0 4px 10px rgba(229, 62, 62, 0.4);
+                                                transition:0.2s;
+                                            ">
+                                        <i class="fa-solid fa-trash"></i>
+                                        Delete
+                                    </button>
+
+                                </form>
+                            {% else %}
+                                <span style="color:#718096; font-size:0.8rem;">—</span>
+                            {% endif %}
+                        </td>
+
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if pagination and pagination.pages > 1 %}
+        <div class="pagination">
+            {% if pagination.has_prev %}
+                <a href="{{ url_for('distribution.index',
+                                    page=pagination.prev_num,
+                                    date_from=filters.date_from,
+                                    date_to=filters.date_to,
+                                    governorate=filters.governorate,
+                                    dist_point=filters.dist_point,
+                                    employee_name=filters.employee_name) }}">
+                    « السابق
+                </a>
+            {% endif %}
+
+            <span class="pagination-info">
+                صفحة {{ pagination.page }} من {{ pagination.pages }}
+            </span>
+
+            {% if pagination.has_next %}
+                <a href="{{ url_for('distribution.index',
+                                    page=pagination.next_num,
+                                    date_from=filters.date_from,
+                                    date_to=filters.date_to,
+                                    governorate=filters.governorate,
+                                    dist_point=filters.dist_point,
+                                    employee_name=filters.employee_name) }}">
+                    التالي »
+                </a>
+            {% endif %}
+        </div>
+        {% endif %}
+        {% else %}
+        <p style="font-size:0.9rem; color:#4a5568; margin-top:8px;">
+            لا توجد سجلات توزيع حتى الآن.
+        </p>
+        {% endif %}
+    </div>
+
+</section>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // ✅ مزامنة dist_point hidden مع اسم المخزن المختار (للحفاظ على النظام القديم)
+        const warehouseSelect = document.getElementById("warehouseSelectDistribution");
+        const distPointHidden = document.getElementById("distPointHidden");
+
+        function syncDistPointHidden() {
+            if (!warehouseSelect || !distPointHidden) return;
+            const selectedText = warehouseSelect.options[warehouseSelect.selectedIndex]?.text || "";
+            distPointHidden.value = selectedText;
+        }
+
+        if (warehouseSelect) {
+            warehouseSelect.addEventListener("change", syncDistPointHidden);
+            syncDistPointHidden();
+        }
+
+        // ===== HHs → Members =====
+        const hhsInput     = document.getElementById("beneficiaries_hhs");
+        const membersInput = document.getElementById("beneficiaries_members");
+
+        function recalcMembers() {
+            if (!hhsInput || !membersInput) return;
+            const hhs = parseInt(hhsInput.value) || 0;
+            membersInput.value = hhs * 5;
+        }
+
+        if (hhsInput && membersInput) {
+            hhsInput.addEventListener("input", recalcMembers);
+            recalcMembers();
+        }
+
+        // ===== MT Calculation =====
+        const whfQtyInput      = document.getElementById("whf_bags");
+        const dateQtyInput     = document.getElementById("date_bars");
+        const hebQtyInput      = document.getElementById("heb_piece");
+        const parcelsQtyInput  = document.getElementById("nr_parcels");
+
+        const whfWInput        = document.getElementById("whf_unit_weight_kg");
+        const dateWInput       = document.getElementById("date_bars_unit_weight_kg");
+        const hebWInput        = document.getElementById("heb_unit_weight_kg");
+        const parcelsWInput    = document.getElementById("parcels_unit_weight_kg");
+
+        const whfMtInput       = document.getElementById("whf_mt");
+        const dateMtInput      = document.getElementById("date_bars_mt");
+        const hebMtInput       = document.getElementById("heb_mt");
+        const parcelsMtInput   = document.getElementById("parcels_mt");
+
+        function safeNumber(el) {
+            if (!el) return 0;
+            const v = parseFloat(el.value);
+            return isNaN(v) ? 0 : v;
+        }
+
+        function recalcMT() {
+            if (!whfMtInput || !dateMtInput || !hebMtInput || !parcelsMtInput) return;
+
+            const whfQty     = safeNumber(whfQtyInput);
+            const dateQty    = safeNumber(dateQtyInput);
+            const hebQty     = safeNumber(hebQtyInput);
+            const parcelsQty = safeNumber(parcelsQtyInput);
+
+            const whfW      = safeNumber(whfWInput);
+            const dateW     = safeNumber(dateWInput);
+            const hebW      = safeNumber(hebWInput);
+            const parcelsW  = safeNumber(parcelsWInput);
+
+            const whfMt     = (whfQty * whfW) / 1000;
+            const dateMt    = (dateQty * dateW) / 1000;
+            const hebMt     = (hebQty * hebW) / 1000;
+            const parcelsMt = (parcelsQty * parcelsW) / 1000;
+
+            whfMtInput.value     = whfMt > 0 ? whfMt.toFixed(3) : "0";
+            dateMtInput.value    = dateMt > 0 ? dateMt.toFixed(3) : "0";
+            hebMtInput.value     = hebMt > 0 ? hebMt.toFixed(3) : "0";
+            parcelsMtInput.value = parcelsMt > 0 ? parcelsMt.toFixed(3) : "0";
+        }
+
+        const inputsToWatch = [
+            whfQtyInput, dateQtyInput, hebQtyInput, parcelsQtyInput,
+            whfWInput, dateWInput, hebWInput, parcelsWInput
+        ];
+
+        inputsToWatch.forEach(function (el) {
+            if (el) el.addEventListener("input", recalcMT);
+        });
+
+        recalcMT();
+    });
+</script>
+{% endblock %}

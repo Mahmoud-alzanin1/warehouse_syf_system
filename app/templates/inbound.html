@@ -1,0 +1,460 @@
+{% extends "base.html" %}
+
+{% block title %}Inbound (Waybill){% endblock %}
+
+{% block content %}
+
+<section class="page-header-gradient">
+    <h1 class="page-header-title">Inbound - Waybill</h1>
+    <p class="page-header-subtitle">
+        إدخال بيانات الويبل طبقاً للنموذج المعتمد مع حساب الطن المتري تلقائياً.
+    </p>
+</section>
+
+<section class="page-content">
+
+    <!-- فورم إدخال الويبل -->
+    <div class="card" style="margin-top: 18px;">
+        <div class="card-header">
+            <h2>New Waybill</h2>
+        </div>
+
+        <form method="post" enctype="multipart/form-data" class="employee-form">
+            <!-- الصف 1 -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" name="date" class="form-input" required>
+                </div>
+
+                <div class="form-group">
+                    <label>FDP (Store)</label>
+
+                    <!-- ✅ الجديد: نخزن warehouse_id (FK) -->
+                    <select name="warehouse_id" class="form-input" required id="warehouseSelect">
+                        <option value="">-- اختر المخزن --</option>
+                        {% for w in all_warehouses %}
+                            <option value="{{ w.id }}">{{ w.name }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <!-- ✅ حفاظًا على القوالب/الكود القديم: نخزن اسم المخزن كنص في fdp -->
+                    <input type="hidden" name="fdp" id="fdpHidden" value="">
+                </div>
+
+                <div class="form-group">
+                    <label>Governorate</label>
+                    <select name="governorate" class="form-input" required>
+                        <option value="">-- اختر المحافظة --</option>
+                       <option value="Ash shati camp">Ash shati camp</option>
+                       <option value="Northern Remal">Northern Remal</option>
+                        <option value="Deir Al-Balah">Deir Al-Balah</option>
+                        <option value="Bitlahya Tuam">Bitlahya Tuam</option>
+                        <option value="Jabalia camp">Jabalia camp</option>
+                       
+                        
+                 
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Waybill</label>
+                    <input type="text" name="waybill_number"
+                           class="form-input"
+                           required>
+                </div>
+            </div>
+
+            <!-- الصف 2 -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Commodity</label>
+                    <select name="commodity" class="form-input" required>
+                        <option value="">-- اختر الصنف --</option>
+                        <option value="WHF">WHF</option>
+                        <option value="RTE">RTE</option>
+                        <option value="HEP">HEP</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>SI #</label>
+                    <input type="text" name="si_number"
+                           class="form-input"
+                           placeholder="SI Number">
+                </div>
+
+                <div class="form-group">
+                    <label>No. of Pallets</label>
+                    <input type="number" name="pallets_count"
+                           class="form-input" min="0" value="0" id="pallets_count">
+                </div>
+
+                <div class="form-group">
+                    <label>Unit/Pallet</label>
+                    <input type="number" name="units_per_pallet"
+                           class="form-input" min="0" value="0" id="units_per_pallet">
+                </div>
+            </div>
+
+            <!-- الصف 3 -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Unit Weight (kg)</label>
+                    <input type="number" step="0.01" name="unit_weight_kg"
+                           class="form-input" min="0" value="0" id="unit_weight_kg">
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        Net No. of Boxes Received
+                        <span style="font-size:0.8rem; color:#718096;">
+                          <!-- يحسب تلقائياً -->
+                        </span>
+                    </label>
+                    <input type="number" name="net_boxes"
+                           class="form-input"
+                           min="0"
+                           value="0"
+                           id="net_boxes"
+                           readonly>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        QTY. MT
+                        <span style="font-size:0.8rem; color:#718096;">
+                          <!-- يحسب تلقائياً -->
+                        </span>
+                    </label>
+                    <input type="number" step="0.001" name="qty_mt"
+                           class="form-input"
+                           min="0"
+                           value="0"
+                           id="qty_mt"
+                           readonly>
+                </div>
+
+                <div class="form-group">
+                    <label>Activity</label>
+                    <input type="text" name="activity_type"
+                           class="form-input"
+                           value="GFD">
+                </div>
+            </div>
+
+            <!-- ✅ الصف 3.5: خانة الدمج / التالف -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Damage (دمج / تالف)</label>
+                    <input type="number"
+                           name="damage_count"
+                           class="form-input"
+                           min="0"
+                           value="0"
+                           placeholder="عدد الطرود التالفة / الدمج">
+                </div>
+                <div class="form-group"></div>
+                <div class="form-group"></div>
+                <div class="form-group"></div>
+            </div>
+
+            <!-- الصف 4: إضافات النظام -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label>اسم المشرف الذي استلم</label>
+                    <input type="text" name="supervisor_name"
+                           class="form-input"
+                           placeholder="اسم المشرف">
+                </div>
+
+                <div class="form-group">
+                    <label>اسم موظف إدخال الويبل</label>
+                    <input type="text"
+                           class="form-input"
+                           value="{{ current_user.username }}"
+                           disabled>
+                </div>
+
+                <div class="form-group">
+                    <label>صورة الويبل</label>
+                    <input type="file" name="waybill_image"
+                           class="form-input"
+                           accept="image/*">
+                </div>
+
+                <div class="form-group"></div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn-primary">
+                    <i class="fa-solid fa-floppy-disk"></i>
+                    Save Waybill
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- كارد عرض السجلات + الفلاتر -->
+    <div class="card" style="margin-top: 18px;">
+        <div class="card-header">
+            <h2>Inbound Records</h2>
+        </div>
+
+        {% if current_user.is_admin %}
+            <!-- فلاتر للأدمن -->
+            <form method="get" class="employee-form" style="margin-bottom: 10px;">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>من تاريخ</label>
+                        <input type="date" name="date_from"
+                               class="form-input"
+                               value="{{ filters.date_from }}">
+                    </div>
+
+                    <div class="form-group">
+                        <label>إلى تاريخ</label>
+                        <input type="date" name="date_to"
+                               class="form-input"
+                               value="{{ filters.date_to }}">
+                    </div>
+
+                    <div class="form-group">
+                        <label>اسم موظف إدخال الويبل</label>
+                        <input type="text" name="employee_name"
+                               class="form-input"
+                               placeholder="بحث بالاسم"
+                               value="{{ filters.employee_name }}">
+                    </div>
+
+                    <div class="form-group">
+                        <label>رقم الويبل</label>
+                        <input type="text" name="waybill_number"
+                               class="form-input"
+                               placeholder="بحث برقم الويبل"
+                               value="{{ filters.waybill_number }}">
+                    </div>
+                </div>
+
+                <div class="form-actions" style="justify-content:flex-start; gap:10px;">
+                    <button type="submit" class="btn-primary">
+                        <i class="fa-solid fa-filter"></i>
+                        Filter
+                    </button>
+
+                    <a href="{{ url_for('inbound.index') }}"
+                       class="btn-primary"
+                       style="background:#4a5568; text-decoration:none;">
+                        <i class="fa-solid fa-rotate-left"></i>
+                        Reset
+                    </a>
+
+                    <a href="{{ url_for('inbound.export',
+                                        date_from=filters.date_from,
+                                        date_to=filters.date_to,
+                                        employee_name=filters.employee_name,
+                                        waybill_number=filters.waybill_number) }}"
+                       class="btn-primary"
+                       style="background:#2f855a; text-decoration:none;">
+                        <i class="fa-solid fa-file-excel"></i>
+                        Export Excel
+                    </a>
+                </div>
+            </form>
+        {% else %}
+            <!-- للموظف العادي: تصدير إدخالاته فقط -->
+            <div class="form-actions" style="justify-content:flex-start; gap:10px; margin-bottom:10px;">
+                <a href="{{ url_for('inbound.export') }}"
+                   class="btn-primary"
+                   style="background:#2f855a; text-decoration:none;">
+                    <i class="fa-solid fa-file-excel"></i>
+                    Export My Inbounds
+                </a>
+            </div>
+        {% endif %}
+
+        {% if entries %}
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>FDP</th>
+                            <th>Governorate</th>
+                            <th>Waybill</th>
+                            <th>Commodity</th>
+                            <th>SI #</th>
+                            <th>No. of Pallets</th>
+                            <th>Unit/Pallet</th>
+                            <th>Unit Weight</th>
+                            <th>QTY. MT</th>
+                            <th>Net Boxes</th>
+                            <th>Activity</th>
+                            <th>Damage</th>
+                            <th>Supervisor</th>
+                            <th>Entry User</th>
+                            <th>وقت الإدخال</th>
+                            <th>الويبل</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for e in entries %}
+                            <tr>
+                                <td>{{ e.date.strftime('%Y-%m-%d') if e.date else '' }}</td>
+                                <td>{{ e.fdp or '' }}</td>
+                                <td>{{ e.governorate or '' }}</td>
+                                <td>{{ e.waybill_number or '' }}</td>
+                                <td>{{ e.commodity or '' }}</td>
+                                <td>{{ e.si_number or '' }}</td>
+                                <td>{{ e.pallets_count or 0 }}</td>
+                                <td>{{ e.units_per_pallet or 0 }}</td>
+                                <td>{{ e.unit_weight_kg or 0 }}</td>
+                                <td>{{ e.qty_mt or 0 }}</td>
+                                <td>{{ e.net_boxes or 0 }}</td>
+                                <td>{{ e.activity_type or '' }}</td>
+                                <td>{{ e.damage_count or 0 }}</td>
+                                <td>{{ e.supervisor_name or '' }}</td>
+                                <td>{{ e.inbound_entry_name or '' }}</td>
+                                <td>
+                                    {{ e.inbound_datetime.strftime('%Y-%m-%d %H:%M:%S') if e.inbound_datetime else '' }}
+                                </td>
+                                <td>
+                                    {% if e.waybill_image %}
+                                        <a href="{{ url_for('files.serve_upload', path=e.waybill_image) }}"
+   target="_blank">
+    عرض
+</a>
+
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    {% if current_user.is_admin %}
+                                        <form method="post"
+                                              action="{{ url_for('inbound.delete', inbound_id=e.id) }}"
+                                              onsubmit="return confirm('هل أنت متأكد من حذف هذا السجل؟');">
+
+                                            <button type="submit"
+                                                    style="
+                                                        background: linear-gradient(135deg, #e53e3e, #c53030);
+                                                        color:#fff;
+                                                        border:none;
+                                                        padding:5px 14px;
+                                                        border-radius:12px;
+                                                        font-size:0.85rem;
+                                                        font-weight:600;
+                                                        cursor:pointer;
+                                                        box-shadow:0 4px 10px rgba(229, 62, 62, 0.4);
+                                                        transition:0.2s;
+                                                    ">
+                                                <i class="fa-solid fa-trash"></i>
+                                                Delete
+                                            </button>
+
+                                        </form>
+                                    {% else %}
+                                        <span style="color:#718096; font-size:0.8rem;">—</span>
+                                    {% endif %}
+                                </td>
+
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if pagination and pagination.pages > 1 %}
+            <div class="pagination">
+                {% if pagination.has_prev %}
+                    <a href="{{ url_for('inbound.index',
+                                        page=pagination.prev_num,
+                                        date_from=filters.date_from,
+                                        date_to=filters.date_to,
+                                        employee_name=filters.employee_name,
+                                        waybill_number=filters.waybill_number) }}">
+                        « السابق
+                    </a>
+                {% endif %}
+
+                <span class="pagination-info">
+                    صفحة {{ pagination.page }} من {{ pagination.pages }}
+                </span>
+
+                {% if pagination.has_next %}
+                    <a href="{{ url_for('inbound.index',
+                                        page=pagination.next_num,
+                                        date_from=filters.date_from,
+                                        date_to=filters.date_to,
+                                        employee_name=filters.employee_name,
+                                        waybill_number=filters.waybill_number) }}">
+                        التالي »
+                    </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        {% else %}
+        <p style="font-size:0.9rem; color:#4a5568; margin-top:8px;">
+            لا توجد سجلات وارد حتى الآن.
+        </p>
+        {% endif %}
+
+    </div>
+
+</section>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const palletsInput     = document.getElementById("pallets_count");
+        const unitsInput       = document.getElementById("units_per_pallet");
+        const netBoxesInput    = document.getElementById("net_boxes");
+        const unitWeightInput  = document.getElementById("unit_weight_kg");
+        const qtyMtInput       = document.getElementById("qty_mt");
+
+        // ✅ مزامنة fdpHidden مع اسم المخزن المختار (للحفاظ على النظام القديم)
+        const warehouseSelect = document.getElementById("warehouseSelect");
+        const fdpHidden = document.getElementById("fdpHidden");
+
+        function syncFdpHidden() {
+            if (!warehouseSelect || !fdpHidden) return;
+            const selectedText = warehouseSelect.options[warehouseSelect.selectedIndex]?.text || "";
+            fdpHidden.value = selectedText;
+        }
+
+        function recalc() {
+            const pallets    = parseInt(palletsInput?.value)    || 0;
+            const units      = parseInt(unitsInput?.value)      || 0;
+            const unitWeight = parseFloat(unitWeightInput?.value) || 0;
+
+            // حساب عدد الكراتين
+            const netBoxes = pallets * units;
+            if (netBoxesInput) {
+                netBoxesInput.value = netBoxes;
+            }
+
+            // حساب الطن المتري
+            const qtyMt = (netBoxes * unitWeight) / 1000;
+            if (qtyMtInput) {
+                qtyMtInput.value = qtyMt ? qtyMt.toFixed(3) : "0";
+            }
+        }
+
+        if (warehouseSelect) {
+            warehouseSelect.addEventListener("change", syncFdpHidden);
+            syncFdpHidden(); // قيمة أولية
+        }
+
+        if (palletsInput)    palletsInput.addEventListener("input", recalc);
+        if (unitsInput)      unitsInput.addEventListener("input", recalc);
+        if (unitWeightInput) unitWeightInput.addEventListener("input", recalc);
+
+        // حساب أولي عند تحميل الصفحة
+        recalc();
+    });
+</script>
+{% endblock %}

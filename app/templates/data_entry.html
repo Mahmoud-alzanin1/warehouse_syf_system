@@ -1,0 +1,314 @@
+{% extends "base.html" %}
+
+{% block title %}Data Entry{% endblock %}
+
+{% block content %}
+
+    <!-- العنوان العلوي -->
+    <section class="page-header-gradient">
+        <h1 class="page-header-title">Data Entry</h1>
+        <p class="page-header-subtitle">
+            إدخال بيانات التوزيع اليومية لموظفي الـ Data Entry
+        </p>
+    </section>
+
+    <section class="page-content">
+
+        <!-- كارد الفورم -->
+        <div class="card" style="margin-top: 18px;">
+            <div class="card-header">
+                <h2>Daily Distribution Entry</h2>
+            </div>
+
+            <form method="post"
+                  enctype="multipart/form-data"
+                  class="employee-form"
+                  id="dataEntryForm">
+                <!-- الصف الأول من الحقول -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>التاريخ</label>
+                        <input type="date" name="entry_date"
+                               class="form-input"
+                               required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>اسم المخزن</label>
+                        <select name="warehouse" class="form-input" required>
+    <option value="">-- اختر المخزن --</option>
+    {% for w in warehouses %}
+        <option value="{{ w.name }}">{{ w.name }}</option>
+    {% endfor %}
+</select>
+
+                    </div>
+
+                    <div class="form-group">
+                        <label>اسم حساب PIT</label>
+                        <input type="text" name="pit_account_name"
+                               class="form-input"
+                               placeholder="اسم حساب PIT">
+                    </div>
+
+                    <div class="form-group">
+                        <label>عدد الطرود الموزعة</label>
+                        <input type="number" name="parcels_count"
+                               class="form-input"
+                               min="0" value="0">
+                    </div>
+                </div>
+
+                <!-- الصف الثاني من الحقول -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>عدد المستفيدين</label>
+                        <input type="number" name="beneficiaries_count"
+                               class="form-input"
+                               min="0" value="0">
+                    </div>
+
+                    <div class="form-group">
+                        <label>نوع التوزيع</label>
+                        <select name="distribution_type" class="form-input">
+                            <option value="">-- اختر نوع التوزيع --</option>
+                            <option value="food">طرود غذائية</option>
+                            <option value="non_food">طرود غير غذائية</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>اسم موظف الداتا انتري</label>
+                        <input type="text"
+                               class="form-input"
+                               value="{{ current_user.username }}"
+                               disabled>
+                    </div>
+
+                    <div class="form-group">
+                        <label>صورة تسليم المستفيدين</label>
+                        <input type="file" name="beneficiaries_image"
+                               class="form-input"
+                               accept="image/*">
+                    </div>
+                </div>
+
+                <!-- الصف الثالث -->
+                <div class="form-row">
+                    <div class="form-group" style="grid-column: span 4;">
+                        <label>ملاحظات</label>
+                        <input type="text" name="notes"
+                               class="form-input"
+                               placeholder="أي ملاحظات إضافية حول عملية التوزيع">
+                    </div>
+                </div>
+
+                <!-- زر الحفظ -->
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        Save Entry
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- كارد عرض السجلات + الفلاتر (الفلاتر للأدمن فقط) -->
+        <div class="card" style="margin-top: 18px;">
+            <div class="card-header">
+                <h2>Recent Entries</h2>
+            </div>
+
+            {% if current_user.is_admin %}
+                <!-- فورم الفلترة (فقط للأدمن) -->
+                <form method="get" class="employee-form" style="margin-bottom: 10px;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>من تاريخ</label>
+                            <input type="date" name="date_from"
+                                   class="form-input"
+                                   value="{{ filters.date_from }}">
+                        </div>
+
+                        <div class="form-group">
+                            <label>إلى تاريخ</label>
+                            <input type="date" name="date_to"
+                                   class="form-input"
+                                   value="{{ filters.date_to }}">
+                        </div>
+
+                        <div class="form-group" style="grid-column: span 2;">
+                            <label>اسم موظف الداتا انتري</label>
+                            <input type="text" name="employee_name"
+                                   class="form-input"
+                                   placeholder="بحث بالاسم"
+                                   value="{{ filters.employee_name }}">
+                        </div>
+                    </div>
+
+                    <div class="form-actions" style="justify-content: flex-start; gap: 10px;">
+                        <button type="submit" class="btn-primary">
+                            <i class="fa-solid fa-filter"></i>
+                            Filter
+                        </button>
+
+                        <a href="{{ url_for('data_entry.index') }}"
+                           class="btn-primary"
+                           style="text-decoration:none; background:#4a5568;">
+                            <i class="fa-solid fa-rotate-left"></i>
+                            Reset
+                        </a>
+
+                        <a href="{{ url_for('data_entry.export',
+                                            date_from=filters.date_from,
+                                            date_to=filters.date_to,
+                                            employee_name=filters.employee_name) }}"
+                           class="btn-primary"
+                           style="text-decoration:none; background:#2f855a;">
+                            <i class="fa-solid fa-file-excel"></i>
+                            Export Excel
+                        </a>
+                    </div>
+                </form>
+            {% else %}
+                <!-- للموظف العادي: زر تصدير لإدخالاته فقط (بدون فلاتر) -->
+                <div class="form-actions" style="justify-content: flex-start; gap: 10px; margin-bottom: 10px;">
+                    <a href="{{ url_for('data_entry.export') }}"
+                       class="btn-primary"
+                       style="text-decoration:none; background:#2f855a;">
+                        <i class="fa-solid fa-file-excel"></i>
+                        Export My Entries
+                    </a>
+                </div>
+            {% endif %}
+
+            {% if entries %}
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>التاريخ</th>
+                                <th>المخزن</th>
+                                <th>حساب PIT</th>
+                                <th>عدد الطرود</th>
+                                <th>عدد المستفيدين</th>
+                                <th>نوع التوزيع</th>
+                                <th>موظف الداتا انتري</th>
+                                <th>ملاحظات</th>
+                                <th>الصورة</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for e in entries %}
+                                <tr>
+                                    <td>{{ e.entry_date.strftime('%Y-%m-%d') if e.entry_date else '' }}</td>
+                                    <td>{{ e.warehouse or '' }}</td>
+                                    <td>{{ e.pit_account_name or '' }}</td>
+                                    <td>{{ e.parcels_count or 0 }}</td>
+                                    <td>{{ e.beneficiaries_count or 0 }}</td>
+                                    <td>{{ e.distribution_type or '' }}</td>
+                                    <td>{{ e.data_entry_name or '' }}</td>
+                                    <td>{{ e.notes or '' }}</td>
+                                    <td>
+                                        {% if e.beneficiaries_image %}
+                                            <a href="{{ url_for('files.serve_upload', path=e.beneficiaries_image) }}"
+                                          target="_blank">
+                                               عرض
+                                            </a>
+
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+
+                                    <td>
+                                        {% if current_user.is_admin %}
+                                            <form method="post"
+                                                  action="{{ url_for('data_entry.delete', entry_id=e.id) }}"
+                                                  onsubmit="return confirm('هل أنت متأكد من حذف هذا الإدخال؟');">
+                                                <button type="submit"
+                                                        style="
+                                                            background-color:#e53e3e;
+                                                            color:#fff;
+                                                            border:none;
+                                                            padding:4px 10px;
+                                                            border-radius:999px;
+                                                            font-size:0.8rem;
+                                                            cursor:pointer;
+                                                        ">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                    Delete
+                                                </button>
+                                            </form>
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 🔹 الباجينيشن -->
+                {% if pagination and pagination.pages > 1 %}
+                    <div class="pagination" style="margin-top: 14px; display:flex; align-items:center; gap:10px;">
+                        {% if pagination.has_prev %}
+                            <a href="{{ url_for('data_entry.index',
+                                                page=pagination.prev_num,
+                                                date_from=filters.date_from,
+                                                date_to=filters.date_to,
+                                                employee_name=filters.employee_name) }}"
+                               class="btn-primary"
+                               style="text-decoration:none; padding:6px 14px; border-radius:999px;">
+                                « السابق
+                            </a>
+                        {% endif %}
+
+                        <span class="pagination-info" style="font-size:0.9rem; color:#4a5568;">
+                            صفحة {{ pagination.page }} من {{ pagination.pages }}
+                        </span>
+
+                        {% if pagination.has_next %}
+                            <a href="{{ url_for('data_entry.index',
+                                                page=pagination.next_num,
+                                                date_from=filters.date_from,
+                                                date_to=filters.date_to,
+                                                employee_name=filters.employee_name) }}"
+                               class="btn-primary"
+                               style="text-decoration:none; padding:6px 14px; border-radius:999px;">
+                                التالي »
+                            </a>
+                        {% endif %}
+                    </div>
+                {% endif %}
+
+            {% else %}
+                <p style="font-size:0.9rem; color:#4a5568; margin-top:8px;">
+                    لا توجد سجلات حتى الآن.
+                </p>
+            {% endif %}
+        </div>
+
+    </section>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // منع حفظ الفورم بالـ Enter (الحفظ فقط من زر Save)
+    document.addEventListener("DOMContentLoaded", function () {
+        const form = document.getElementById("dataEntryForm");
+        if (!form) return;
+
+        form.addEventListener("keydown", function (e) {
+            // لو كبس Enter داخل أي input → نمنع الـ submit
+            if (e.key === "Enter") {
+                e.preventDefault();
+                return false;
+            }
+        });
+    });
+</script>
+{% endblock %}

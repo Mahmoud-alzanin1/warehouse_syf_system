@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Admin – Users{% endblock %}
+
+{% block content %}
+
+<section class="page-header-gradient">
+    <h1 class="page-header-title">Admin – Users Management</h1>
+    <p class="page-header-subtitle">
+        إنشاء المستخدمين، تفعيلهم وتعطيلهم، والتحكم بصلاحيات كل صفحة.
+    </p>
+</section>
+
+<section class="page-content">
+
+    <!-- ===== إنشاء مستخدم جديد ===== -->
+    <div class="card" style="margin-bottom: 18px;">
+        <div class="card-header">
+            <h2>Create New User</h2>
+        </div>
+
+        <form method="post" action="{{ url_for('admin.create_user') }}" class="employee-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input class="form-input" type="text" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input class="form-input" type="password" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label>Email (اختياري)</label>
+                    <input class="form-input" type="email" name="email">
+                </div>
+                <div class="form-group" style="display:flex; align-items:flex-end;">
+                    <button class="btn-primary" type="submit">
+                        <i class="fa-solid fa-user-plus"></i>
+                        Create
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- ===== جدول المستخدمين ===== -->
+    <div class="card">
+        <div class="card-header">
+            <h2>Users List & Permissions</h2>
+        </div>
+
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Username</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Permissions</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for u in users %}
+                    <tr>
+                        <td>{{ u.id }}</td>
+                        <td>{{ u.username }}</td>
+                        <td>{{ u.role or "" }}</td>
+
+                        <td>
+                            {% if u.is_active_user %}
+                                <span style="color:#38a169; font-weight:bold;">Active</span>
+                            {% else %}
+                                <span style="color:#e53e3e; font-weight:bold;">Disabled</span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            <form method="post"
+                                  action="{{ url_for('admin.update_permissions', user_id=u.id) }}">
+                                <label>
+                                    <input type="checkbox" name="inbound"
+                                           {% if u.can_access_inbound %}checked{% endif %}>
+                                    Inbound
+                                </label><br>
+
+<label>
+    <input type="checkbox" name="outbound"
+           {% if u.can_access_outbound %}checked{% endif %}>
+    Outbound
+</label><br>
+
+
+
+
+                                <label>
+                                    <input type="checkbox" name="distribution"
+                                           {% if u.can_access_distribution %}checked{% endif %}>
+                                    Distribution
+                                </label><br>
+
+                                <label>
+                                    <input type="checkbox" name="data_entry"
+                                           {% if u.can_access_data_entry %}checked{% endif %}>
+                                    Data Entry
+                                </label><br>
+
+                                <label>
+                                    <input type="checkbox" name="dashboard"
+                                           {% if u.can_access_dashboard %}checked{% endif %}>
+                                    Dashboard
+                                </label><br>
+
+                                <label>
+                                    <input type="checkbox" name="profile"
+                                           {% if u.can_access_profile %}checked{% endif %}>
+                                    Profile
+                                </label><br>
+
+                                <button type="submit"
+                                        class="btn-primary"
+                                        style="margin-top:6px; padding:4px 14px; font-size:0.8rem;">
+                                    Update
+                                </button>
+                            </form>
+                        </td>
+
+                        <td>
+                            <!-- تفعيل / تعطيل -->
+                            <form method="post"
+                                  action="{{ url_for('admin.toggle_user', user_id=u.id) }}"
+                                  style="display:inline-block; margin-right:4px;">
+                                <button type="submit"
+                                        class="btn-primary"
+                                        style="padding:4px 10px; font-size:0.8rem;">
+                                    {% if u.is_active_user %}Disable{% else %}Activate{% endif %}
+                                </button>
+                            </form>
+
+                            <!-- حذف المستخدم (باستثناء المستخدم الرئيسي) -->
+                            {% if u.username != "mahmoud" %}
+                            <form method="post"
+                                  action="{{ url_for('admin.delete_user', user_id=u.id) }}"
+                                  style="display:inline-block;"
+                                  onsubmit="return confirm('Delete this user permanently?');">
+                                <button type="submit"
+                                        style="
+                                            background:#e53e3e;
+                                            color:#fff;
+                                            border:none;
+                                            padding:4px 10px;
+                                            border-radius:999px;
+                                            font-size:0.8rem;
+                                            cursor:pointer;
+                                        ">
+                                    Delete
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</section>
+
+{% endblock %}

@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+
+{% block title %}Employee Profile{% endblock %}
+
+{% block content %}
+
+    <!-- العنوان العلوي (الهيدر الملون) -->
+    <section class="page-header-gradient">
+        <h1 class="page-header-title">Employee Profile</h1>
+        <p class="page-header-subtitle">
+            Create employee profile and basic details
+        </p>
+    </section>
+
+    <section class="page-content">
+
+        <!-- كارد بيانات الموظف -->
+        <div class="card" style="margin-top: 18px;">
+            <div class="card-header">
+                <h2>Employee Profile</h2>
+            </div>
+
+           <form method="post" action="{{ url_for('users.employee_profile') }}" class="employee-form">
+
+    <!-- الأسماء بالعربي -->
+    <div class="form-row">
+        <div class="form-group">
+            <label>الاسم الأول (عربي)</label>
+            <input type="text" name="arabic_first_name" class="form-input"
+                   value="{{ employee.arabic_first_name if employee else '' }}">
+        </div>
+
+        <div class="form-group">
+            <label>اسم الأب (عربي)</label>
+            <input type="text" name="arabic_second_name" class="form-input"
+                   value="{{ employee.arabic_second_name if employee else '' }}">
+        </div>
+
+        <div class="form-group">
+            <label>اسم الجد (عربي)</label>
+            <input type="text" name="arabic_third_name" class="form-input"
+                   value="{{ employee.arabic_third_name if employee else '' }}">
+        </div>
+
+        <div class="form-group">
+            <label>اسم العائلة (عربي)</label>
+            <input type="text" name="arabic_family_name" class="form-input"
+                   value="{{ employee.arabic_family_name if employee else '' }}">
+        </div>
+    </div>
+
+    <!-- الأسماء بالإنجليزي -->
+    <div class="form-row">
+        <div class="form-group">
+            <label>First Name</label>
+            <input type="text" name="first_name" class="form-input"
+                   value="{{ employee.first_name if employee else '' }}">
+        </div>
+
+        <div class="form-group">
+            <label>Father Name</label>
+            <input type="text" name="second_name" class="form-input"
+                   value="{{ employee.second_name if employee else '' }}">
+        </div>
+
+        <div class="form-group">
+            <label>Grandfather Name</label>
+            <input type="text" name="third_name" class="form-input"
+                   value="{{ employee.third_name if employee else '' }}">
+        </div>
+
+        <div class="form-group">
+            <label>Family Name</label>
+            <input type="text" name="last_name" class="form-input"
+                   value="{{ employee.last_name if employee else '' }}">
+        </div>
+    </div>
+
+    <!-- الهوية - الميلاد - الجنس - الجوال -->
+    <div class="form-row">
+        <div class="form-group">
+            <label>National ID</label>
+            <input type="text" name="national_id" maxlength="9" class="form-input"
+                   value="{{ employee.national_id if employee else '' }}" required>
+        </div>
+
+        <div class="form-group">
+            <label>Date of Birth</label>
+            <input type="date" name="dob" class="form-input"
+                   value="{{ employee.dob.isoformat() if employee and employee.dob else '' }}" required>
+        </div>
+
+        <div class="form-group">
+            <label>Gender</label>
+            <select name="gender" class="form-input" required>
+                <option value="">-- Select Gender --</option>
+                <option value="Male" {{ 'selected' if employee and employee.gender=='Male' else '' }}>Male</option>
+                <option value="Female" {{ 'selected' if employee and employee.gender=='Female' else '' }}>Female</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Phone #</label>
+            <input type="text" name="phone" maxlength="10" class="form-input"
+                   value="{{ employee.phone if employee else '' }}" required>
+        </div>
+    </div>
+
+    <!-- العنوان -->
+    <div class="form-row">
+        <div class="form-group">
+            <label>المحافظة</label>
+            <select id="Gov" name="gov" class="form-input"
+                    data-selected-gov="{{ employee.gov if employee else '' }}">
+                <option value="">-- اختر المحافظة --</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>المنطقة</label>
+            <select id="Area" name="area" class="form-input"
+                    data-selected-area="{{ employee.area if employee else '' }}">
+                <option value="">-- اختر المنطقة --</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>الشارع</label>
+            <input type="text" name="street" class="form-input"
+                   value="{{ employee.street if employee else '' }}">
+        </div>
+
+        <div class="form-group">
+            <label>بالقرب من</label>
+            <input type="text" name="nearby" class="form-input"
+                   value="{{ employee.nearby if employee else '' }}">
+        </div>
+    </div>
+
+    <!-- التعليم -->
+    <div class="form-row">
+        <div class="form-group">
+            <label>Education Level</label>
+            <select name="education_level" class="form-input">
+                <option value="">-- Select Education Level --</option>
+                <option value="High School">High School</option>
+                <option value="High School Diploma">High School Diploma</option>
+                <option value="Bachelor Degree">Bachelor Degree</option>
+                <option value="Master Degree">Master Degree</option>
+                <option value="PhD">PhD</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Education</label>
+            <input type="text" name="education" class="form-input"
+                   value="{{ employee.education if employee else '' }}">
+        </div>
+
+        <div class="form-group">
+            <label>Hire Date</label>
+            <input type="date" name="hire_date" class="form-input"
+                   value="{{ employee.hire_date.isoformat() if employee and employee.hire_date else '' }}">
+        </div>
+    </div>
+
+    <!-- المسمى الوظيفي -->
+    <div class="form-row">
+        <div class="form-group">
+            <label>Job Title</label>
+            <select name="job_title" class="form-input">
+                <option value="">-- Select Job Title --</option>
+                <option value="store_manager" {{ 'selected' if employee and employee.job_title=='store_manager' else '' }}>مسؤول مخزن</option>
+                <option value="inbound_officer" {{ 'selected' if employee and employee.job_title=='inbound_officer' else '' }}>موظف واردات</option>
+                <option value="distribution_officer" {{ 'selected' if employee and employee.job_title=='distribution_officer' else '' }}>مسؤول توزيع</option>
+                <option value="data_entry" {{ 'selected' if employee and employee.job_title=='data_entry' else '' }}>موظف إدخال بيانات</option>
+                <option value="system_admin" {{ 'selected' if employee and employee.job_title=='system_admin' else '' }}>مسؤول نظام</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" class="btn-primary">Save</button>
+    </div>
+
+</form>
+
+
+        </div>
+
+    </section>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // بيانات المحافظات والمناطق
+    const GOV_DATA = {
+        "شمال غزة": ["الأبراج", "التوام", "الصفطاوي", "العطاطرة", "الكرامة", "المشروع", "بيت حانون", "بيت لاهيا", "بئر النعجة", "تل الزعتر", "جباليا", "عباد الرحمن", "معسكر جباليا"],
+        "غزة": ["التفاح", "الدرج", "الرمال الجنوبي", "الرمال الشمالي", "الزهراء", "الزيتون", "الشاطئ", "الشجاعية", "الشيخ رضوان", "الشيخ عجلين", "الصبرة", "العودة (ابراج المقوسي/المخابرات)", "المغراقة", "النصر", "تل الهوى"],
+        "الوسطى": ["البريج", "الزوايدة", "المغازي", "النصيرات", "جحر الديك", "دير البلح"],
+        "خانيونس": ["البلد", "السطر الشرقي", "السطر الغربي", "الفخاري", "القرارة", "المشروع", "المعسكر", "بطن السمين", "بني سهيلا", "حمد", "خزاعة", "عبسان الجديدة", "عبسان الكبيرة", "معن"],
+        "رفح": ["البرازيل", "البلد", "الجنينة", "الحي السعودي", "السلطان", "الشابورة", "الشوكة", "المواصي", "حي السلام", "حي الشعوت", "خربة العدس", "رفح الغربية", "مشروع عامر", "مصبح", "ميراج", "يبنا"]
+    };
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const govSelect = document.getElementById("Gov");
+        const areaSelect = document.getElementById("Area");
+
+        const selectedGov = govSelect.dataset.selectedGov || "";
+        const selectedArea = areaSelect.dataset.selectedArea || "";
+
+        // تعبئة المحافظات
+        Object.keys(GOV_DATA).forEach(gov => {
+            const opt = document.createElement("option");
+            opt.value = gov;
+            opt.textContent = gov;
+            if (gov === selectedGov) {
+                opt.selected = true;
+            }
+            govSelect.appendChild(opt);
+        });
+
+        function fillAreas() {
+            const gov = govSelect.value;
+            areaSelect.innerHTML = '<option value="">-- اختر المنطقة --</option>';
+            if (gov && GOV_DATA[gov]) {
+                GOV_DATA[gov].forEach(area => {
+                    const opt = document.createElement("option");
+                    opt.value = area;
+                    opt.textContent = area;
+                    if (gov === selectedGov && area === selectedArea) {
+                        opt.selected = true;
+                    }
+                    areaSelect.appendChild(opt);
+                });
+            }
+        }
+
+        // أول تحميل للصفحة: لو في محافظة محفوظة، نعبّي المناطق ونختار المنطقة
+        if (selectedGov) {
+            fillAreas();
+        }
+
+        govSelect.addEventListener("change", function () {
+            // لما يغيّر المحافظة من جديد، نحدّث المناطق بدون اختيار مسبق
+            areaSelect.dataset.selectedArea = "";
+            fillAreas();
+        });
+    });
+</script>
+{% endblock %}

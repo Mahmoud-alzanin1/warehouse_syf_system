@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - {{ wh_name }}{% endblock %}
+
+{% block content %}
+<section class="page-header-gradient">
+  <h1 class="page-header-title">Dashboard – {{ wh_name }}</h1>
+  <p class="page-header-subtitle">
+    Inbound + Distribution + Outbound + Balance (Units + MT) + Damage
+  </p>
+</section>
+
+<section class="page-content">
+
+  <!-- Filters -->
+  <div class="card" style="margin-top: 18px; margin-bottom: 18px;">
+    <div class="card-header"><h2>Filters</h2></div>
+
+    <form method="get"
+          action="{{ url_for('dashboard.view_warehouse', warehouse_id=warehouse_id) }}"
+          class="employee-form">
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>من تاريخ</label>
+          <input type="date" name="date_from" class="form-input" value="{{ filters.date_from }}">
+        </div>
+
+        <div class="form-group">
+          <label>إلى تاريخ</label>
+          <input type="date" name="date_to" class="form-input" value="{{ filters.date_to }}">
+        </div>
+
+        <div class="form-group" style="display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap;">
+          <button type="submit" class="btn-primary">
+            <i class="fa-solid fa-filter"></i> Apply
+          </button>
+
+          <a href="{{ url_for('dashboard.view_warehouse', warehouse_id=warehouse_id) }}"
+             class="btn-primary" style="background:#4a5568; text-decoration:none;">
+            <i class="fa-solid fa-rotate-left"></i> Reset
+          </a>
+
+          <a href="{{ url_for('dashboard.export_warehouse',
+                              warehouse_id=warehouse_id,
+                              date_from=filters.date_from,
+                              date_to=filters.date_to) }}"
+             class="btn-primary" style="background:#2f855a; text-decoration:none;">
+            <i class="fa-solid fa-file-excel"></i> Export Excel
+          </a>
+        </div>
+
+        <div class="form-group"></div>
+      </div>
+    </form>
+  </div>
+
+  <!-- Cards -->
+  <h2 style="margin-top: 10px; margin-bottom: 12px;">Warehouse Summary (Items Count)</h2>
+
+  <style>
+    .stats-container{display:flex;flex-wrap:wrap;gap:16px;margin-bottom:20px;}
+    .stats-card{flex:1 1 220px;border-radius:16px;padding:16px 18px;background:linear-gradient(135deg,#2b6cb0,#4299e1);color:#fff;box-shadow:0 8px 18px rgba(15,23,42,.18);position:relative;overflow:hidden;}
+    .stats-card:nth-child(2){background:linear-gradient(135deg,#c05621,#ed8936);}
+    .stats-card:nth-child(3){background:linear-gradient(135deg,#2f855a,#48bb78);}
+    .stats-card:nth-child(4){background:linear-gradient(135deg,#553c9a,#805ad5);}
+    .stats-card::after{content:"";position:absolute;right:-40px;top:-40px;width:120px;height:120px;border-radius:999px;border:14px solid rgba(255,255,255,.12);}
+    .stats-card h3{margin:0 0 10px;font-size:1.1rem;letter-spacing:.03em;text-transform:uppercase;}
+    .stat-row{display:flex;justify-content:space-between;font-size:.9rem;margin-bottom:4px;}
+    .stat-row span{opacity:.9;}
+    .stat-row strong{font-weight:700;}
+    .chart-container{position:relative;width:100%;max-width:900px;margin:0 auto;padding:10px;}
+    #warehouseChart{max-height:360px;}
+    @media (max-width:768px){.stats-card{flex:1 1 100%;}}
+    .mt-positive{color:#2f855a;font-weight:600;}
+    .mt-negative{color:#e53e3e;font-weight:600;}
+    .mt-zero{color:#4a5568;font-weight:600;}
+    .damage-badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.75rem;font-weight:600;}
+    .damage-inbound-badge{background:#ebf8ff;color:#2b6cb0;}
+    .damage-distribution-badge{background:#fff5f5;color:#c53030;}
+    .damage-outbound-badge{background:#faf5ff;color:#6b46c1;}
+    .damage-balance-badge-positive{background:#f0fff4;color:#2f855a;}
+    .damage-balance-badge-negative{background:#fff5f5;color:#c53030;}
+    .damage-balance-badge-zero{background:#edf2f7;color:#4a5568;}
+  </style>
+
+  <div class="stats-container">
+    {% for s in stats_list %}
+      <div class="stats-card">
+        <h3>{{ s.commodity }}</h3>
+        <div class="stat-row"><span>Inbound</span><strong>{{ s.inbound }}</strong></div>
+        <div class="stat-row"><span>Distributed</span><strong>{{ s.distributed }}</strong></div>
+        <div class="stat-row"><span>Outbound</span><strong>{{ s.outbound }}</strong></div>
+        <div class="stat-row"><span>Balance</span><strong>{{ s.balance }}</strong></div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <!-- Chart -->
+  <div class="card">
+    <div class="card-header"><h2>Items Overview Chart</h2></div>
+    <div class="chart-container">
+      <canvas id="warehouseChart"></canvas>
+    </div>
+  </div>
+
+  <!-- MT Table -->
+  <div class="card" style="margin-top: 18px;">
+    <div class="card-header"><h2>Warehouse Summary (Metric Tons)</h2></div>
+
+    {% if balance_mt and balance_mt|length > 0 %}
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Commodity</th>
+              <th>Inbound MT</th>
+              <th>Distributed MT</th>
+              <th>Balance MT</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item, bal_mt in balance_mt.items() %}
+              {% set in_mt = inbound_mt.get(item, 0) | float %}
+              {% set dist_mt = distributed_mt.get(item, 0) | float %}
+              <tr>
+                <td>{{ item }}</td>
+                <td>{{ in_mt | round(3) }}</td>
+                <td>{{ dist_mt | round(3) }}</td>
+                <td class="{% if bal_mt < 0 %}mt-negative{% elif bal_mt > 0 %}mt-positive{% else %}mt-zero{% endif %}">
+                  {{ bal_mt | round(3) }}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p style="font-size:0.9rem;color:#4a5568;margin-top:8px;">لا توجد بيانات طن متري ضمن نطاق التاريخ.</p>
+    {% endif %}
+  </div>
+
+  <!-- Damage Table -->
+  {% if damage_stats %}
+    <div class="card" style="margin-top: 18px;">
+      <div class="card-header">
+        <h2>Damage Summary by Commodity (Units)</h2>
+      </div>
+
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Commodity</th>
+              <th>Damage Inbound</th>
+              <th>Damage Distribution</th>
+              <th>Damage Outbound</th>
+              <th>Damage Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in damage_stats %}
+              {% set bal = row.damage_balance %}
+              <tr>
+                <td>{{ row.commodity }}</td>
+                <td><span class="damage-badge damage-inbound-badge">{{ row.damage_inbound }}</span></td>
+                <td><span class="damage-badge damage-distribution-badge">{{ row.damage_distribution }}</span></td>
+                <td><span class="damage-badge damage-outbound-badge">{{ row.damage_outbound }}</span></td>
+                <td>
+                  {% if bal > 0 %}
+                    <span class="damage-badge damage-balance-badge-positive">{{ bal }}</span>
+                  {% elif bal < 0 %}
+                    <span class="damage-badge damage-balance-badge-negative">{{ bal }}</span>
+                  {% else %}
+                    <span class="damage-badge damage-balance-badge-zero">{{ bal }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% endif %}
+
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const labels      = JSON.parse(`{{ labels | tojson | safe }}`);
+    const inboundData = JSON.parse(`{{ inbound_series | tojson | safe }}`);
+    const distData    = JSON.parse(`{{ dist_series | tojson | safe }}`);
+    const balanceData = JSON.parse(`{{ balance_series | tojson | safe }}`);
+
+    const canvas = document.getElementById('warehouseChart');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+
+    const balanceColors = balanceData.map(v => {
+      if (v < 0) return 'rgba(229, 62, 62, 0.85)';
+      if (v > 0) return 'rgba(56, 161, 105, 0.9)';
+      return 'rgba(113, 128, 150, 0.9)';
+    });
+
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          { label: 'Inbound (Units)', data: inboundData, backgroundColor: 'rgba(66, 153, 225, 0.7)' },
+          { label: 'Distributed (Units)', data: distData, backgroundColor: 'rgba(160, 174, 192, 0.8)' },
+          { label: 'Balance (Units)', data: balanceData, backgroundColor: balanceColors }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'top' } },
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+  });
+</script>
+{% endblock %}
