@@ -1,3 +1,4 @@
+import os
 from flask import Flask
 from flask_login import LoginManager
 from flask_migrate import Migrate
@@ -16,17 +17,17 @@ from app.distribution.controller import distribution_bp
 from app.dashboard.controller import dashboard_bp
 from app.admin.controller import admin_bp
 from app.outbound.controller import outbound_bp
-
-# ✅ Files blueprint (serving instance/uploads securely)
 from app.files import files_bp
 
 
+# ---------------- Extensions ----------------
 login_manager = LoginManager()
 login_manager.login_view = "auth.login"
 
 migrate = Migrate()
 
 
+# ---------------- User Loader ----------------
 @login_manager.user_loader
 def load_user(user_id):
     try:
@@ -35,59 +36,57 @@ def load_user(user_id):
         return None
 
 
-def _ensure_default_admin(app: Flask):
-    """
-    ✅ ينشئ أدمن افتراضي مرة واحدة فقط وبشكل آمن:
-    - لا ينشئ أدمن إذا كانت البيانات غير موجودة بالـ ENV
-    - لا يطبع كلمة المرور
-    """
-    username = app.config.get("DEFAULT_ADMIN_USERNAME")
-    email = app.config.get("DEFAULT_ADMIN_EMAIL")
-    password = app.config.get("DEFAULT_ADMIN_PASSWORD")
-
-    # لو مش مزوّدين من ENV → ما نعملش أدمن
-    if not (username and email and password):
-        return
-
-    # إذا فيه مستخدمين موجودين أصلًا → لا تعمل شيء
-    if User.query.count() > 0:
-        return
-
-    admin = User(
-        username=username.strip(),
-        email=email.strip(),
-        role="admin",
-        is_admin=True,
-        is_active_user=True,
-        can_access_inbound=True,
-        can_access_distribution=True,
-        can_access_data_entry=True,
-        can_access_dashboard=True,
-        can_access_profile=True,
-        can_access_outbound=True,
-        can_access_admin_panel=True,
-    )
-    admin.set_password(password)
-    db.session.add(admin)
-    db.session.commit()
-    print("✅ Default admin created from ENV variables.")
-
-
-def create_app(config_class: type[Config] = Config):
+# ---------------- Create App ----------------
+def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
+    # Init extensions
     db.init_app(app)
     login_manager.init_app(app)
     migrate.init_app(app, db)
 
-    # ✅ تحميل الموديلات + إنشاء أدمن اختياري
+    # ---------------- App Context ----------------
     with app.app_context():
+        # Import models
         from app import models  # noqa: F401
-        _ensure_default_admin(app)
 
-    # ✅ تسجيل الـ Blueprints
+        # Create tables (safe on first deploy only)
+        db.create_all()
+
+        # Ensure upload folders exist
+        os.makedirs(app.config["WAYBILLS_UPLOAD_DIR"], exist_ok=True)
+        os.makedirs(app.config["BENEFICIARIES_UPLOAD_DIR"], exist_ok=True)
+
+        # Optional: create default admin (if ENV exists)
+        username = app.config.get("DEFAULT_ADMIN_USERNAME")
+        email = app.config.get("DEFAULT_ADMIN_EMAIL")
+        password = app.config.get("DEFAULT_ADMIN_PASSWORD")
+
+        if username and email and password:
+            if User.query.count() == 0:
+                admin = User(
+                    username=username.strip(),
+                    email=email.strip(),
+                    role="admin",
+                    is_admin=True,
+                    is_active_user=True,
+                    can_access_inbound=True,
+                    can_access_distribution=True,
+                    can_access_data_entry=True,
+                    can_access_dashboard=True,
+                    can_access_profile=True,
+                    can_access_outbound=True,
+                    can_access_admin_panel=True,
+                )
+                admin.set_password(password)
+                db.session.add(admin)
+                db.session.commit()
+                print("✅ Default admin created")
+
+    # ---------------- Blueprints ----------------
     app.register_blueprint(main_bp)
+
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(users_bp, url_prefix="/users")
     app.register_blueprint(data_entry_bp, url_prefix="/data-entry")
@@ -97,21 +96,16 @@ def create_app(config_class: type[Config] = Config):
     app.register_blueprint(admin_bp, url_prefix="/admin")
     app.register_blueprint(outbound_bp, url_prefix="/outbound")
 
-    # ✅ Serve uploaded files (instance/uploads)
     app.register_blueprint(files_bp)
 
-    # ✅ Inject warehouses — بدون كسر القوالب القديمة
+    # ---------------- Context Processor ----------------
     @app.context_processor
     def inject_warehouses():
         from app.models.warehouse import Warehouse
 
         try:
-            warehouses = (
-                Warehouse.query
-                .filter_by(is_active=True)
-                .order_by(Warehouse.name.asc())
-                .all()
-            )
+            warehouses = Warehouse.query.filter_by(is_active=True)\
+                .order_by(Warehouse.name.asc()).all()
         except Exception:
             warehouses = []
 
