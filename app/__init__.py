@@ -6,6 +6,7 @@ from flask_migrate import Migrate
 from config import Config
 from app.core.database import db
 from app.models.user import User
+from app.models.warehouse import Warehouse
 
 # Blueprints
 from app.routes import main_bp
@@ -48,20 +49,18 @@ def create_app(config_class=Config):
 
     # ---------------- App Context ----------------
     with app.app_context():
-        # Import models
-        from app import models  # noqa: F401
+        from app import models  # noqa
 
-        # Ensure upload folders exist
-        os.makedirs(app.config["WAYBILLS_UPLOAD_DIR"], exist_ok=True)
-        os.makedirs(app.config["BENEFICIARIES_UPLOAD_DIR"], exist_ok=True)
+        # ✅ إنشاء الجداول
+        db.create_all()
 
-        # Optional: create default admin (if ENV exists)
+        # ---------------- إنشاء الأدمن ----------------
         username = app.config.get("DEFAULT_ADMIN_USERNAME")
         email = app.config.get("DEFAULT_ADMIN_EMAIL")
         password = app.config.get("DEFAULT_ADMIN_PASSWORD")
 
         if username and email and password:
-            if User.query.count() == 0:
+            if User.query.first() is None:
                 admin = User(
                     username=username.strip(),
                     email=email.strip(),
@@ -81,6 +80,32 @@ def create_app(config_class=Config):
                 db.session.commit()
                 print("✅ Default admin created")
 
+        # ---------------- إنشاء المخازن ----------------
+        warehouses_list = [
+            "SYF-Abu Rashid",
+            "FPDSYFS17",
+            "AL-Migdad",
+            "Abu Zayed Store",
+            "Al-Zawaida Club SYFS",
+        ]
+
+        added = 0
+
+        for name in warehouses_list:
+            exists = Warehouse.query.filter_by(name=name).first()
+            if not exists:
+                db.session.add(Warehouse(name=name, is_active=True))
+                added += 1
+
+        db.session.commit()
+
+        if added > 0:
+            print(f"✅ Warehouses added: {added}")
+
+        # ---------------- إنشاء المجلدات ----------------
+        os.makedirs(app.config["WAYBILLS_UPLOAD_DIR"], exist_ok=True)
+        os.makedirs(app.config["BENEFICIARIES_UPLOAD_DIR"], exist_ok=True)
+
     # ---------------- Blueprints ----------------
     app.register_blueprint(main_bp)
 
@@ -98,8 +123,6 @@ def create_app(config_class=Config):
     # ---------------- Context Processor ----------------
     @app.context_processor
     def inject_warehouses():
-        from app.models.warehouse import Warehouse
-
         try:
             warehouses = (
                 Warehouse.query
