@@ -51,9 +51,6 @@ def create_app(config_class=Config):
         # Import models
         from app import models  # noqa: F401
 
-        # Create tables (safe on first deploy only)
-        db.create_all()
-
         # Ensure upload folders exist
         os.makedirs(app.config["WAYBILLS_UPLOAD_DIR"], exist_ok=True)
         os.makedirs(app.config["BENEFICIARIES_UPLOAD_DIR"], exist_ok=True)
@@ -104,8 +101,12 @@ def create_app(config_class=Config):
         from app.models.warehouse import Warehouse
 
         try:
-            warehouses = Warehouse.query.filter_by(is_active=True)\
-                .order_by(Warehouse.name.asc()).all()
+            warehouses = (
+                Warehouse.query
+                .filter_by(is_active=True)
+                .order_by(Warehouse.name.asc())
+                .all()
+            )
         except Exception:
             warehouses = []
 
