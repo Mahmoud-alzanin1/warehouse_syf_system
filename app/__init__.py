@@ -47,20 +47,28 @@ def create_app(config_class=Config):
     login_manager.init_app(app)
     migrate.init_app(app, db)
 
-    # ---------------- App Context ----------------
     with app.app_context():
         from app import models  # noqa
 
-        # ✅ إنشاء الجداول
+        # =========================
+        # CREATE TABLES
+        # =========================
         db.create_all()
 
-        # ---------------- إنشاء الأدمن ----------------
+        # =========================
+        # ADMIN CREATION (FIXED)
+        # =========================
         username = app.config.get("DEFAULT_ADMIN_USERNAME")
         email = app.config.get("DEFAULT_ADMIN_EMAIL")
         password = app.config.get("DEFAULT_ADMIN_PASSWORD")
 
         if username and email and password:
-            if User.query.first() is None:
+
+            existing_admin = User.query.filter_by(
+                username=username, role="admin"
+            ).first()
+
+            if not existing_admin:
                 admin = User(
                     username=username.strip(),
                     email=email.strip(),
@@ -79,8 +87,12 @@ def create_app(config_class=Config):
                 db.session.add(admin)
                 db.session.commit()
                 print("✅ Default admin created")
+            else:
+                print("ℹ️ Admin already exists")
 
-        # ---------------- إنشاء المخازن ----------------
+        # =========================
+        # SEED WAREHOUSES
+        # =========================
         warehouses_list = [
             "SYF-Abu Rashid",
             "FPDSYFS17",
@@ -102,11 +114,13 @@ def create_app(config_class=Config):
         if added > 0:
             print(f"✅ Warehouses added: {added}")
 
-        # ---------------- إنشاء المجلدات ----------------
+        # =========================
+        # UPLOAD FOLDERS
+        # =========================
         os.makedirs(app.config["WAYBILLS_UPLOAD_DIR"], exist_ok=True)
         os.makedirs(app.config["BENEFICIARIES_UPLOAD_DIR"], exist_ok=True)
 
-    # ---------------- Blueprints ----------------
+    # ---------------- BLUEPRINTS ----------------
     app.register_blueprint(main_bp)
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
@@ -120,7 +134,7 @@ def create_app(config_class=Config):
 
     app.register_blueprint(files_bp)
 
-    # ---------------- Context Processor ----------------
+    # ---------------- CONTEXT ----------------
     @app.context_processor
     def inject_warehouses():
         try:
