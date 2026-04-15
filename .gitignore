@@ -25,3 +25,6 @@ logs/
 # IDE
 .vscode/
 .DS_Store
+
+*.lnk
+*.exe
