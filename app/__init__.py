@@ -46,7 +46,10 @@ def create_app(config_class=Config):
     with app.app_context():
         from app import models  # noqa
 
-   
+        # 🔥🔥🔥 RESET كامل (مؤقت)
+       
+        db.create_all()
+        print("🔥 DB RESET DONE")
 
         # ================= ADMIN =================
         username = app.config.get("DEFAULT_ADMIN_USERNAME")
