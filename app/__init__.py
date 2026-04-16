@@ -21,14 +21,12 @@ from app.outbound.controller import outbound_bp
 from app.files import files_bp
 
 
-# ---------------- Extensions ----------------
 login_manager = LoginManager()
 login_manager.login_view = "auth.login"
 
 migrate = Migrate()
 
 
-# ---------------- User Loader ----------------
 @login_manager.user_loader
 def load_user(user_id):
     try:
@@ -37,12 +35,10 @@ def load_user(user_id):
         return None
 
 
-# ---------------- Create App ----------------
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-    # Init extensions
     db.init_app(app)
     login_manager.init_app(app)
     migrate.init_app(app, db)
@@ -50,49 +46,37 @@ def create_app(config_class=Config):
     with app.app_context():
         from app import models  # noqa
 
-        # =========================
-        # CREATE TABLES
-        # =========================
+        # 🔥🔥🔥 RESET كامل (مؤقت)
+        db.drop_all()
         db.create_all()
+        print("🔥 DB RESET DONE")
 
-        # =========================
-        # ADMIN CREATION (FIXED)
-        # =========================
+        # ================= ADMIN =================
         username = app.config.get("DEFAULT_ADMIN_USERNAME")
         email = app.config.get("DEFAULT_ADMIN_EMAIL")
         password = app.config.get("DEFAULT_ADMIN_PASSWORD")
 
         if username and email and password:
+            admin = User(
+                username=username.strip(),
+                email=email.strip(),
+                role="admin",
+                is_admin=True,
+                is_active_user=True,
+                can_access_inbound=True,
+                can_access_distribution=True,
+                can_access_data_entry=True,
+                can_access_dashboard=True,
+                can_access_profile=True,
+                can_access_outbound=True,
+                can_access_admin_panel=True,
+            )
+            admin.set_password(password)
+            db.session.add(admin)
+            db.session.commit()
+            print("✅ Default admin created")
 
-            existing_admin = User.query.filter_by(
-                username=username, role="admin"
-            ).first()
-
-            if not existing_admin:
-                admin = User(
-                    username=username.strip(),
-                    email=email.strip(),
-                    role="admin",
-                    is_admin=True,
-                    is_active_user=True,
-                    can_access_inbound=True,
-                    can_access_distribution=True,
-                    can_access_data_entry=True,
-                    can_access_dashboard=True,
-                    can_access_profile=True,
-                    can_access_outbound=True,
-                    can_access_admin_panel=True,
-                )
-                admin.set_password(password)
-                db.session.add(admin)
-                db.session.commit()
-                print("✅ Default admin created")
-            else:
-                print("ℹ️ Admin already exists")
-
-        # =========================
-        # SEED WAREHOUSES
-        # =========================
+        # ================= WAREHOUSES =================
         warehouses_list = [
             "SYF-Abu Rashid",
             "FPDSYFS17",
@@ -101,28 +85,18 @@ def create_app(config_class=Config):
             "Al-Zawaida Club SYFS",
         ]
 
-        added = 0
-
         for name in warehouses_list:
-            exists = Warehouse.query.filter_by(name=name).first()
-            if not exists:
-                db.session.add(Warehouse(name=name, is_active=True))
-                added += 1
+            db.session.add(Warehouse(name=name, is_active=True))
 
         db.session.commit()
+        print("✅ Warehouses added")
 
-        if added > 0:
-            print(f"✅ Warehouses added: {added}")
-
-        # =========================
-        # UPLOAD FOLDERS
-        # =========================
+        # ================= FOLDERS =================
         os.makedirs(app.config["WAYBILLS_UPLOAD_DIR"], exist_ok=True)
         os.makedirs(app.config["BENEFICIARIES_UPLOAD_DIR"], exist_ok=True)
 
-    # ---------------- BLUEPRINTS ----------------
+    # ================= BLUEPRINTS =================
     app.register_blueprint(main_bp)
-
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(users_bp, url_prefix="/users")
     app.register_blueprint(data_entry_bp, url_prefix="/data-entry")
@@ -131,19 +105,12 @@ def create_app(config_class=Config):
     app.register_blueprint(dashboard_bp, url_prefix="/dashboard")
     app.register_blueprint(admin_bp, url_prefix="/admin")
     app.register_blueprint(outbound_bp, url_prefix="/outbound")
-
     app.register_blueprint(files_bp)
 
-    # ---------------- CONTEXT ----------------
     @app.context_processor
     def inject_warehouses():
         try:
-            warehouses = (
-                Warehouse.query
-                .filter_by(is_active=True)
-                .order_by(Warehouse.name.asc())
-                .all()
-            )
+            warehouses = Warehouse.query.filter_by(is_active=True).all()
         except Exception:
             warehouses = []
 
