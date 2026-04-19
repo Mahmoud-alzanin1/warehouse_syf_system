@@ -43,6 +43,9 @@ ALLOWED_IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
 # UPLOAD FUNCTION
 # =========================
 def _save_beneficiaries_image(file_storage) -> str:
+    if not file_storage:
+        raise ValueError("لم يتم إرسال ملف")
+
     original = file_storage.filename or ""
 
     _, ext = os.path.splitext(original)
@@ -51,10 +54,9 @@ def _save_beneficiaries_image(file_storage) -> str:
     if ext not in ALLOWED_IMAGE_EXTS:
         raise ValueError("⚠ امتداد الصورة غير مسموح (JPG/PNG/WEBP فقط)")
 
-    # 🔥 UNIQUE FILE NAME
+    # unique name
     timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     unique_id = uuid.uuid4().hex[:10]
-
     public_id = f"data_entry/{timestamp}_{unique_id}"
 
     try:
@@ -66,7 +68,7 @@ def _save_beneficiaries_image(file_storage) -> str:
             resource_type="image"
         )
 
-        return result["secure_url"]
+        return result.get("secure_url")
 
     except Exception as e:
         print("Cloudinary Upload Error:", e)
@@ -80,6 +82,7 @@ def _save_beneficiaries_image(file_storage) -> str:
 @login_required
 @permission_required("can_access_data_entry")
 def index():
+
     warehouses = Warehouse.query.filter_by(is_active=True).all()
 
     if request.method == "POST":
@@ -93,14 +96,18 @@ def index():
         distribution_type = request.form.get("distribution_type")
         notes = request.form.get("notes")
 
-        # date parse
+        # =========================
+        # DATE VALIDATION
+        # =========================
         try:
             entry_date = datetime.strptime(entry_date, "%Y-%m-%d").date()
         except:
             flash("تاريخ غير صحيح", "danger")
             return redirect(url_for("data_entry.index"))
 
-        # numbers
+        # =========================
+        # NUMBERS VALIDATION
+        # =========================
         try:
             parcels_count = int(parcels_count)
             beneficiaries_count = int(beneficiaries_count)
@@ -114,14 +121,16 @@ def index():
         file = request.files.get("beneficiaries_image")
         image_url = None
 
-        if file and file.filename:
+        if file and file.filename != "":
             try:
                 image_url = _save_beneficiaries_image(file)
             except Exception as e:
                 flash(str(e), "danger")
                 return redirect(url_for("data_entry.index"))
 
-        # save DB
+        # =========================
+        # SAVE TO DB
+        # =========================
         record = DataEntry(
             entry_date=entry_date,
             warehouse=warehouse_name,
@@ -154,8 +163,7 @@ def index():
         "data_entry.html",
         entries=pagination.items,
         pagination=pagination,
-        warehouses=warehouses,
-        filters={}
+        warehouses=warehouses
     )
 
 
@@ -166,6 +174,7 @@ def index():
 @login_required
 @permission_required("can_access_data_entry")
 def delete_entry(entry_id):
+
     record = DataEntry.query.get_or_404(entry_id)
 
     if not current_user.is_admin and record.created_by_user_id != current_user.id:
