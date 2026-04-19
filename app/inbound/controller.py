@@ -1,4 +1,5 @@
 import os
+import cloudinary.uploader
 from datetime import datetime
 from io import BytesIO
 
@@ -107,39 +108,43 @@ def _safe_waybill_filename(waybill_number: str, ext: str) -> str:
     return f"{base}_{stamp}{ext}"
 
 
+
+
 def _save_waybill_image(file_storage, waybill_number: str) -> str:
-    """
-    يحفظ صورة الويبل داخل instance/uploads/waybills
-    ويرجع مسار للتخزين في DB مثل:
-    uploads/waybills/<filename>
-    """
-    original = secure_filename(file_storage.filename or "")
-    if not original:
-        raise ValueError("اسم الملف غير صالح.")
+    try:
+        original = secure_filename(file_storage.filename or "")
+        if not original:
+            raise ValueError("اسم الملف غير صالح.")
 
-    if not _is_allowed_image(original):
-        raise ValueError("صيغة الصورة غير مدعومة. استخدم JPG/PNG/WEBP فقط.")
+        if not _is_allowed_image(original):
+            raise ValueError("صيغة الصورة غير مدعومة. استخدم JPG/PNG/WEBP فقط.")
 
-    wb = (waybill_number or "").strip()
-    if not wb:
-        raise ValueError("رقم الويبل مطلوب لحفظ الصورة باسم رقم الويبل.")
+        wb = (waybill_number or "").strip() or "waybill"
 
-    _, ext = os.path.splitext(original)
-    ext = (ext or "").lower()
+        cleaned = []
+        for ch in wb:
+            if ch.isalnum() or ch in ("_", "-"):
+                cleaned.append(ch)
+            else:
+                cleaned.append("_")
 
-    save_dir = current_app.config.get("WAYBILLS_UPLOAD_DIR")
-    if not save_dir:
-        raise RuntimeError("WAYBILLS_UPLOAD_DIR غير مضبوط في config.py")
+        wb_clean = "".join(cleaned).strip("_-") or "waybill"
+        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        public_id = f"{wb_clean}_{timestamp}"
 
-    os.makedirs(save_dir, exist_ok=True)
+        result = cloudinary.uploader.upload(
+            file_storage,
+            folder="inbound_waybills",
+            public_id=public_id,
+            overwrite=False,
+            resource_type="image"
+        )
 
-    filename = _safe_waybill_filename(wb, ext)
-    full_path = os.path.join(save_dir, filename)
+        return result.get("secure_url")
 
-    file_storage.save(full_path)
-
-    return f"uploads/waybills/{filename}"
-
+    except Exception as e:
+        raise RuntimeError(f"فشل رفع الصورة إلى Cloudinary: {str(e)}")
+    
 
 @inbound_bp.route("/", methods=["GET", "POST"])
 @login_required
@@ -361,7 +366,7 @@ def export():
         ])
 
         if r.waybill_image:
-            img_url = base_url + url_for("files.serve_upload", path=r.waybill_image)
+            img_url = r.waybill_image
             cell = ws.cell(row=row_index, column=len(headers))
             cell.value = "عرض الويبل"
             cell.hyperlink = img_url

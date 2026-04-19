@@ -111,21 +111,32 @@ def _save_outbound_waybill_image(file_storage, waybill_number: str) -> str:
     if not wb:
         raise ValueError("رقم الويبل مطلوب لحفظ الصورة باسم رقم الويبل.")
 
-    _, ext = os.path.splitext(original)
-    ext = (ext or "").lower()
+    try:
+        # تنظيف الاسم
+        cleaned = []
+        for ch in wb:
+            if ch.isalnum() or ch in ("_", "-"):
+                cleaned.append(ch)
+            else:
+                cleaned.append("_")
+        wb_clean = "".join(cleaned).strip("_-") or "waybill"
 
-    save_dir = current_app.config.get("WAYBILLS_UPLOAD_DIR")
-    if not save_dir:
-        raise RuntimeError("WAYBILLS_UPLOAD_DIR غير مضبوط في config.py")
+        # تاريخ + وقت
+        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        public_id = f"{wb_clean}_{timestamp}"
 
-    os.makedirs(save_dir, exist_ok=True)
+        import cloudinary.uploader
+        result = cloudinary.uploader.upload(
+            file_storage,
+            folder="waybills",
+            public_id=public_id,
+            overwrite=True,
+        )
 
-    filename = _safe_waybill_filename(wb, ext)
-    full_path = os.path.join(save_dir, filename)
-    file_storage.save(full_path)
+        return result.get("secure_url")
 
-    return f"uploads/waybills/{filename}"
-
+    except Exception as e:
+        raise RuntimeError(f"فشل رفع الصورة إلى Cloudinary: {str(e)}")
 
 @outbound_bp.route("/", methods=["GET", "POST"])
 @login_required

@@ -3,6 +3,8 @@ from flask import Flask
 from flask_login import LoginManager
 from flask_migrate import Migrate
 
+import cloudinary
+
 from config import Config
 from app.core.database import db
 from app.models.user import User
@@ -43,6 +45,14 @@ def create_app(config_class=Config):
     db.init_app(app)
     login_manager.init_app(app)
     migrate.init_app(app, db)
+
+    # ================= CLOUDINARY INIT (🔥 مهم جداً) =================
+    cloudinary.config(
+        cloud_name=app.config.get("CLOUDINARY_CLOUD_NAME"),
+        api_key=app.config.get("CLOUDINARY_API_KEY"),
+        api_secret=app.config.get("CLOUDINARY_API_SECRET"),
+        secure=True
+    )
 
     with app.app_context():
         from app import models  # noqa
@@ -101,7 +111,7 @@ def create_app(config_class=Config):
         db.session.commit()
         print("✅ Warehouses seeded safely")
 
-        # ================= FOLDERS =================
+        # ================= LOCAL FOLDERS (backup optional) =================
         os.makedirs(app.config["WAYBILLS_UPLOAD_DIR"], exist_ok=True)
         os.makedirs(app.config["BENEFICIARIES_UPLOAD_DIR"], exist_ok=True)
 
